@@ -114,6 +114,12 @@ function Orders() {
   const [updatingStatus, setUpdatingStatus] = useState({});
   const [dialogUpdating, setDialogUpdating] = useState(false);
 
+const [selectedOrderId, setSelectedOrderId] = useState(null);
+const [selectedOrderItems, setSelectedOrderItems] = useState([]);
+const [openDialogview, setOpenDialogView] = useState(false);
+
+
+
   // Define orderStatuses inside the component to access the imported icons
   const orderStatuses = [
     { value: "pending", color: "warning", icon: <PendingTimeIcon /> },
@@ -172,6 +178,7 @@ function Orders() {
         const filteredOrders = res.data.data.filter(
           (order) => order.user !== null && order.user !== undefined
         );
+
         // Fetch user names for all orders
         const userIds = Array.from(
           new Set(filteredOrders.map((order) => order.user).filter(Boolean))
@@ -476,7 +483,12 @@ function Orders() {
   };
 
   const OrderDetails = ({ order }) => {
-    console.log("OrderDetails order:", order);
+
+    
+
+
+
+
     return (
       <Box>
         <Grid container spacing={3}>
@@ -842,6 +854,7 @@ function Orders() {
     "delivered",
     "cancelled",
     "returned",
+
   ];
 
   return (
@@ -1198,14 +1211,23 @@ function Orders() {
                         })}
                       </Typography>
                     </TableCell>
-                    <TableCell>
-                      <Typography variant="body2" align="center">
-                        {order.orderItems?.reduce(
-                          (sum, item) => sum + (item.quantity || 0),
-                          0
-                        ) || 0}
-                      </Typography>
-                    </TableCell>
+ <TableCell>
+  <Typography variant="body2" align="center">
+    <Button
+      variant="outlined"
+      size="small"
+      onClick={() => {
+        setSelectedOrderId(order.orderId);
+        setSelectedOrderItems(order.orderItems);
+        setOpenDialogView(true);
+      }}
+    >
+      View Products
+    </Button>
+  </Typography>
+</TableCell>
+
+
                     <TableCell>
                       <Typography variant="body2" fontWeight={500}>
                         {formatPrice(
@@ -1295,6 +1317,7 @@ function Orders() {
                             Out for Delivery
                           </MenuItem>
                           <MenuItem value="delivered">Delivered</MenuItem>
+                          <MenuItem value="cancelled">cancelled</MenuItem>
                         </Select>
                       </FormControl>
                     </TableCell>
@@ -1351,6 +1374,59 @@ function Orders() {
           {toast.message}
         </MuiAlert>
       </Snackbar>
+
+<Dialog
+  open={openDialogview}
+  onClose={() => setOpenDialogView(false)}
+  fullWidth
+  maxWidth="md"
+>
+  <DialogTitle>
+    Products for Order ID: {selectedOrderId}
+  </DialogTitle>
+
+  <DialogContent dividers>
+    <Table>
+      <TableHead>
+        <TableRow>
+          <TableCell>Image</TableCell>
+          <TableCell>Name</TableCell>
+          <TableCell>Color</TableCell>
+          <TableCell>Size</TableCell>
+          <TableCell>Quantity</TableCell>
+          <TableCell>Price</TableCell>
+        </TableRow>
+      </TableHead>
+
+      <TableBody>
+        {selectedOrderItems.map((item, index) => (
+          <TableRow key={item._id || index}>
+            <TableCell>
+              <img
+                src={`https://images.unsplash.com/${item.image}`}
+                alt={item.name}
+                style={{ width: 50, height: 50, objectFit: 'cover' }}
+              />
+            </TableCell>
+            <TableCell>{item.name}</TableCell>
+            <TableCell>{item.color}</TableCell>
+            <TableCell>{item.size}</TableCell>
+            <TableCell>{item.quantity}</TableCell>
+            <TableCell>₹{item.price}</TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
+  </DialogContent>
+
+  <DialogActions>
+    <Button onClick={() => setOpenDialogView(false)} color="primary">
+      Close
+    </Button>
+  </DialogActions>
+</Dialog>
+
+     
 
       {/* Export Success Snackbar */}
       <Snackbar

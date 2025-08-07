@@ -129,6 +129,7 @@ function Products() {
   const [loading, setLoading] = useState(false);
   const [deleteLoadingId, setDeleteLoadingId] = useState(null);
 
+
   const fetchProducts = async () => {
     setLoading(true);
     try {
@@ -670,6 +671,24 @@ function Products() {
                 sx={{ mt: 1 }}
               />
             </Grid>
+             <Grid item xs={12}>
+              <Typography variant="subtitle2" color="text.secondary">
+                Size
+              </Typography>
+             <Typography variant="body1" paragraph>
+  {product.sizes?.join(', ')}
+</Typography>
+
+            </Grid>
+            <Grid item xs={12}>
+              <Typography variant="subtitle2" color="text.secondary">
+                Colors
+              </Typography>
+             <Typography variant="body1" paragraph>
+  {product.colors?.join(', ')}
+</Typography>
+
+            </Grid>
             <Grid item xs={12}>
               <Typography variant="subtitle2" color="text.secondary">
                 Description
@@ -678,6 +697,7 @@ function Products() {
                 {product.description}
               </Typography>
             </Grid>
+            
             <Grid item xs={12}>
               <Typography variant="subtitle2" color="text.secondary">
                 Additional Information
@@ -1295,30 +1315,6 @@ function Products() {
       </Dialog>
     );
   };
-
-  const renderTableActions = (product) => (
-    <TableCell>
-      <Tooltip title="View Details">
-        <IconButton size="small" onClick={() => handleViewProduct(product)}>
-          <ViewIcon />
-        </IconButton>
-      </Tooltip>
-      <Tooltip title="Edit">
-        <IconButton size="small" onClick={() => handleEditProduct(product)}>
-          <EditIcon />
-        </IconButton>
-      </Tooltip>
-      <Tooltip title="Delete">
-        <IconButton
-          size="small"
-          color="error"
-          onClick={() => handleDeleteClick(product)}
-        >
-          <DeleteIcon />
-        </IconButton>
-      </Tooltip>
-    </TableCell>
-  );
 
   return (
     <Box

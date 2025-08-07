@@ -165,44 +165,6 @@ const AdminLayout = ({ children, toggleTheme, mode }) => {
 
   return (
     <Box sx={{ display: "flex", minHeight: "100vh" }}>
-      {/* App Bar */}
-      <AppBar
-        position="fixed"
-        sx={{
-          width: { md: `calc(100% - ${drawerWidth}px)` },
-          ml: { md: `${drawerWidth}px` },
-          backgroundColor: "background.paper",
-          color: "text.primary",
-          boxShadow: "none",
-          borderBottom: "1px solid",
-          borderColor: "divider",
-        }}
-      >
-        <Toolbar>
-          <IconButton
-            color="inherit"
-            edge="start"
-            onClick={handleDrawerToggle}
-            sx={{ mr: 2, display: { md: "none" } }}
-          >
-            <MenuIcon />
-          </IconButton>
-
-          <Box sx={{ flexGrow: 1 }} />
-
-          {/* Settings */}
-          <Tooltip title="Settings">
-            <IconButton
-              color="inherit"
-              onClick={() => navigate("/admin/settings")}
-              sx={{ mr: 1 }}
-            >
-              <SettingsIcon />
-            </IconButton>
-          </Tooltip>
-        </Toolbar>
-      </AppBar>
-
       {/* Drawer */}
       <Box
         component="nav"
