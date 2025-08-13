@@ -80,7 +80,7 @@ const categories = [
 
 const collections = [
   "Beaten Exclusive Collection",
-  "Beaten Launch Sale Vol 1",
+  "Beaten Launch Sale Drop 1",
   "Beaten Signature Collection",
   "New Arrivals",
   "Best Sellers",
@@ -759,11 +759,15 @@ function Products() {
       discount: product?.discount || 0,
       isFeatured: product?.isFeatured || false,
       isNewArrival: product?.isNewArrival || false,
+      Beaten_Launch_Sale_Drop_1: product?.Beaten_Launch_Sale_Drop_1 || false,
       isBestSeller: product?.isBestSeller || false,
       soldCount: product?.soldCount || 0,
       images: product?.images || [],
     });
 
+    const [featuresInput, setFeaturesInput] = useState("");
+    const [tagsInput, setTagsInput] = useState("");
+const [colorsInput, setColorsInput] = useState(formData.colors.join(", "));
     const [submitLoading, setSubmitLoading] = useState(false);
 
     const handleChange = (e) => {
@@ -1176,22 +1180,23 @@ function Products() {
                 </FormControl>
               </Grid>
               <Grid item xs={12} md={6}>
-                <TextField
-                  fullWidth
-                  label="Colors (comma separated)"
-                  name="colors"
-                  value={formData.colors.join(", ")}
-                  onChange={(e) =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      colors: e.target.value
-                        .split(",")
-                        .map((c) => c.trim())
-                        .filter((c) => c),
-                    }))
-                  }
-                  placeholder="Red, Blue, Green"
-                />
+               <TextField
+  fullWidth
+  label="Colors (comma separated)"
+  name="colors"
+  value={colorsInput}
+  onChange={(e) => setColorsInput(e.target.value)}
+  onBlur={() =>
+    setFormData((prev) => ({
+      ...prev,
+      colors: colorsInput
+        .split(",")
+        .map((c) => c.trim())
+        .filter((c) => c),
+    }))
+  }
+  placeholder="Red, Blue, Green"
+/>
               </Grid>
 
               {/* Product Flags Section */}
@@ -1255,6 +1260,24 @@ function Products() {
                   label="New Arrival"
                 />
               </Grid>
+               <Grid item xs={12} md={3}>
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={formData.Beaten_Launch_Sale_Drop_1}
+                      onChange={(e) =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          Beaten_Launch_Sale_Drop_1: e.target.checked,
+                        }))
+                      }
+                      name="Beaten Launch Sale Drop 1"
+                      color="primary"
+                    />
+                  }
+                  label="Beaten Launch Sale Drop 1"
+                />
+              </Grid>
 
               {/* Specifications Section */}
               <Grid item xs={12}>
@@ -1263,42 +1286,44 @@ function Products() {
                   Specifications
                 </Typography>
               </Grid>
-              <Grid item xs={12} md={6}>
-                <TextField
-                  fullWidth
-                  label="Features (comma separated)"
-                  name="features"
-                  value={formData.features.join(", ")}
-                  onChange={(e) =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      features: e.target.value
-                        .split(",")
-                        .map((f) => f.trim())
-                        .filter((f) => f),
-                    }))
-                  }
-                  placeholder="Feature 1, Feature 2, Feature 3"
-                />
-              </Grid>
+             <Grid item xs={12} md={6}>
+  <TextField
+    fullWidth
+    label="Features (comma separated)"
+    name="features"
+    value={featuresInput}
+    onChange={(e) => setFeaturesInput(e.target.value)}
+    onBlur={() => {
+      setFormData((prev) => ({
+        ...prev,
+        features: featuresInput
+          .split(",")
+          .map((f) => f.trim())
+          .filter((f) => f),
+      }));
+    }}
+    placeholder="Feature 1, Feature 2, Feature 3"
+  />
+</Grid>
               <Grid item xs={12}>
-                <TextField
-                  fullWidth
-                  label="Tags (comma separated)"
-                  name="tags"
-                  value={formData.tags.join(", ")}
-                  onChange={(e) =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      tags: e.target.value
-                        .split(",")
-                        .map((t) => t.trim())
-                        .filter((t) => t),
-                    }))
-                  }
-                  placeholder="Tag 1, Tag 2, Tag 3"
-                />
-              </Grid>
+  <TextField
+    fullWidth
+    label="Tags (comma separated)"
+    name="tags"
+    value={tagsInput}
+    onChange={(e) => setTagsInput(e.target.value)}
+    onBlur={() => {
+      setFormData((prev) => ({
+        ...prev,
+        tags: tagsInput
+          .split(",")
+          .map((t) => t.trim())
+          .filter((t) => t),
+      }));
+    }}
+    placeholder="Tag 1, Tag 2, Tag 3"
+  />
+</Grid>
             </Grid>
           </DialogContent>
           <DialogActions>

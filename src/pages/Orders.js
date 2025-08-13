@@ -184,6 +184,7 @@ const [openDialogview, setOpenDialogView] = useState(false);
           new Set(filteredOrders.map((order) => order.user).filter(Boolean))
         );
         await Promise.all(userIds.map(fetchUserName));
+        console.log("Filtered Orders:", filteredOrders)
         setOrders(filteredOrders);
       } catch (error) {
         console.error("Failed to fetch orders:", error);
@@ -363,8 +364,10 @@ const [openDialogview, setOpenDialogView] = useState(false);
     return orders
       .filter((order) => {
         // Search filter
+
+       
         const searchLower = searchTerm.toLowerCase();
-        const orderId = order._id ? order._id.toLowerCase() : "";
+        const orderId = order.orderId ? order.orderId.toLowerCase() : "";
         const customerName = userNames[order.user]?.name || "";
         const customerEmail = userNames[order.user]?.email || "";
 
@@ -483,12 +486,6 @@ const [openDialogview, setOpenDialogView] = useState(false);
   };
 
   const OrderDetails = ({ order }) => {
-
-    
-
-
-
-
     return (
       <Box>
         <Grid container spacing={3}>
@@ -1390,6 +1387,7 @@ const [openDialogview, setOpenDialogView] = useState(false);
       <TableHead>
         <TableRow>
           <TableCell>Image</TableCell>
+          <TableCell>SKU</TableCell>
           <TableCell>Name</TableCell>
           <TableCell>Color</TableCell>
           <TableCell>Size</TableCell>
@@ -1408,6 +1406,7 @@ const [openDialogview, setOpenDialogView] = useState(false);
                 style={{ width: 50, height: 50, objectFit: 'cover' }}
               />
             </TableCell>
+            <TableCell>{item.sku}</TableCell>
             <TableCell>{item.name}</TableCell>
             <TableCell>{item.color}</TableCell>
             <TableCell>{item.size}</TableCell>
