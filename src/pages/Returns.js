@@ -20,6 +20,10 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
+  Stepper,
+  Step,
+  StepLabel,
+  StepConnector,
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import AssignmentReturnIcon from "@mui/icons-material/AssignmentReturn";
@@ -39,6 +43,55 @@ const statusIcons = {
   pending: <PendingIcon fontSize="small" />,
   approved: <CheckCircleIcon fontSize="small" />,
   rejected: <CancelIcon fontSize="small" />,
+};
+
+// Stepper configuration
+const stepperSteps = ["Requested", "Approved", "Completed"];
+
+const getActiveStep = (status, isReceived) => {
+  if (status === "pending") return 0;
+  if (status === "approved" && !isReceived) return 1;
+  if (status === "approved" && isReceived) return 2;
+  return 0;
+};
+
+// Custom Stepper Component
+const CustomReturnStepper = ({ status, isReceived }) => {
+  const activeStep = getActiveStep(status, isReceived);
+  
+  return (
+    <Box sx={{ width: '100%', mt: 2, mb: 2 }}>
+      <Stepper 
+        activeStep={activeStep} 
+        alternativeLabel
+        connector={<StepConnector sx={{ '& .MuiStepConnector-line': { borderColor: '#e0e0e0' } }} />}
+      >
+        {stepperSteps.map((label, index) => (
+          <Step key={label} completed={index < activeStep}>
+            <StepLabel
+              sx={{
+                '& .MuiStepLabel-label': {
+                  color: index === 2 ? '#000000' : '#4caf50', // Black for Completed, Green for others
+                  fontWeight: index <= activeStep ? 600 : 400,
+                },
+                '& .MuiStepIcon-root': {
+                  color: index === 2 ? '#000000' : '#4caf50', // Black for Completed, Green for others
+                  '&.Mui-active': {
+                    color: index === 2 ? '#000000' : '#4caf50',
+                  },
+                  '&.Mui-completed': {
+                    color: index === 2 ? '#000000' : '#4caf50',
+                  }
+                }
+              }}
+            >
+              {label}
+            </StepLabel>
+          </Step>
+        ))}
+      </Stepper>
+    </Box>
+  );
 };
 
 const Returns = () => {
@@ -326,6 +379,15 @@ const Returns = () => {
                       {ret.date ? new Date(ret.date).toLocaleString() : ""}
                     </Typography>
                   </Box>
+                  
+                  {/* Show stepper only when status is approved */}
+                  {ret.status === "approved" && (
+                    <CustomReturnStepper 
+                      status={ret.status} 
+                      isReceived={isReceived}
+                    />
+                  )}
+                  
                   <Box sx={{ display: "flex", gap: 2, mt: 1 }}>
                     <Button
                       variant="contained"

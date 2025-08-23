@@ -78,6 +78,16 @@ const categories = [
   "Dresses",
 ];
 
+const subCategories = {
+  "T-shirts": ["Basic Tees", "Graphic Tees", "Polo Shirts", "V-Neck", "Round Neck", "Oversized"],
+  "Shirts": ["Casual Shirts", "Formal Shirts", "Printed Shirts", "Solid Shirts", "Denim Shirts"],
+  "Bottom Wear": ["Jeans", "Trousers", "Shorts", "Track Pants", "Cargo Pants", "Chinos"],
+  "Hoodies": ["Pullover Hoodies", "Zip-Up Hoodies", "Oversized Hoodies", "Cropped Hoodies"],
+  "Jackets": ["Denim Jackets", "Bomber Jackets", "Leather Jackets", "Winter Jackets", "Blazers"],
+  "Co-ord Sets": ["Matching Sets", "Two Piece Sets", "Three Piece Sets", "Casual Sets", "Formal Sets"],
+  "Dresses": ["Casual Dresses", "Formal Dresses", "Maxi Dresses", "Mini Dresses", "Midi Dresses", "Party Dresses"],
+};
+
 const collections = [
   "Beaten Exclusive Collection",
   "Beaten Launch Sale Drop 1",
@@ -761,6 +771,7 @@ function Products() {
       isNewArrival: product?.isNewArrival || false,
       Beaten_Launch_Sale_Drop_1: product?.Beaten_Launch_Sale_Drop_1 || false,
       isBestSeller: product?.isBestSeller || false,
+      isBeatenExclusive: product?.isBeatenExclusive || false,
       soldCount: product?.soldCount || 0,
       images: product?.images || [],
     });
@@ -772,10 +783,33 @@ const [colorsInput, setColorsInput] = useState(formData.colors.join(", "));
 
     const handleChange = (e) => {
       const { name, value } = e.target;
-      setFormData((prev) => ({
-        ...prev,
-        [name]: value,
-      }));
+      
+      setFormData((prev) => {
+        const updatedData = {
+          ...prev,
+          [name]: value,
+        };
+        
+        // Clear subcategory when category changes
+        if (name === 'category') {
+          updatedData.subCategory = '';
+        }
+        
+        // Auto-calculate discount when price or originalPrice changes
+        if (name === 'price' || name === 'originalPrice') {
+          const currentPrice = name === 'price' ? parseFloat(value) || 0 : parseFloat(prev.price) || 0;
+          const originalPrice = name === 'originalPrice' ? parseFloat(value) || 0 : parseFloat(prev.originalPrice) || 0;
+          
+          if (originalPrice > 0 && currentPrice > 0 && originalPrice > currentPrice) {
+            const discountPercentage = ((originalPrice - currentPrice) / originalPrice) * 100;
+            updatedData.discount = Math.round(discountPercentage * 100) / 100; // Round to 2 decimal places
+          } else {
+            updatedData.discount = 0;
+          }
+        }
+        
+        return updatedData;
+      });
     };
 
     const handleImagesChange = (newImages) => {
@@ -850,6 +884,17 @@ const [colorsInput, setColorsInput] = useState(formData.colors.join(", "));
         };
         if (!payload.fit) delete payload.fit;
         delete payload.images;
+        
+        // Debug: Log the exact payload being sent
+        console.log("🚀 PAYLOAD BEING SENT TO API:", JSON.stringify(payload, null, 2));
+        console.log("🔍 Product Flags in Payload:", {
+          Beaten_Launch_Sale_Drop_1: payload.Beaten_Launch_Sale_Drop_1,
+          isBeatenExclusive: payload.isBeatenExclusive,
+          isFeatured: payload.isFeatured,
+          isNewArrival: payload.isNewArrival,
+          isBestSeller: payload.isBestSeller
+        });
+        
         if (!imageUrl) {
           toast.error(
             "Please upload/select an image before saving the product. Image is required."
@@ -996,14 +1041,30 @@ const [colorsInput, setColorsInput] = useState(formData.colors.join(", "));
                 </FormControl>
               </Grid>
               <Grid item xs={12} md={4}>
-                <TextField
-                  fullWidth
-                  label="Sub Category *"
-                  name="subCategory"
-                  value={formData.subCategory}
-                  onChange={handleChange}
-                  required
-                />
+                <FormControl fullWidth>
+                  <InputLabel>
+                    Sub Category <span style={{ color: "red" }}>*</span>
+                  </InputLabel>
+                  <Select
+                    name="subCategory"
+                    value={formData.subCategory}
+                    label="Sub Category *"
+                    onChange={handleChange}
+                    required
+                    disabled={!formData.category}
+                  >
+                    {formData.category && subCategories[formData.category] ? 
+                      subCategories[formData.category].map((subCategory) => (
+                        <MenuItem key={subCategory} value={subCategory}>
+                          {subCategory}
+                        </MenuItem>
+                      )) : 
+                      <MenuItem value="" disabled>
+                        Please select a category first
+                      </MenuItem>
+                    }
+                  </Select>
+                </FormControl>
               </Grid>
               <Grid item xs={12} md={4}>
                 <FormControl fullWidth>
@@ -1097,19 +1158,31 @@ const [colorsInput, setColorsInput] = useState(formData.colors.join(", "));
                 />
               </Grid>
               <Grid item xs={12} md={4}>
-                <TextField
-                  fullWidth
-                  label="Discount (%)"
-                  name="discount"
-                  type="number"
-                  value={formData.discount}
-                  onChange={handleChange}
-                  InputProps={{
-                    endAdornment: (
-                      <InputAdornment position="end">%</InputAdornment>
-                    ),
-                  }}
-                />
+                <Box>
+                  <TextField
+                    fullWidth
+                    label="Discount (%) - Auto Calculated"
+                    name="discount"
+                    type="number"
+                    value={formData.discount}
+                    InputProps={{
+                      readOnly: true,
+                      endAdornment: (
+                        <InputAdornment position="end">%</InputAdornment>
+                      ),
+                    }}
+                    helperText={
+                      formData.originalPrice && formData.price && formData.originalPrice > formData.price
+                        ? `Savings: ₹${(parseFloat(formData.originalPrice) - parseFloat(formData.price)).toFixed(2)}`
+                        : "Automatically calculated based on original price and current price"
+                    }
+                    sx={{
+                      '& .MuiInputBase-input': {
+                        backgroundColor: '#f5f5f5',
+                      },
+                    }}
+                  />
+                </Box>
               </Grid>
 
               {/* Inventory Section */}
@@ -1198,6 +1271,54 @@ const [colorsInput, setColorsInput] = useState(formData.colors.join(", "));
   placeholder="Red, Blue, Green"
 />
               </Grid>
+              
+              {/* Materials and Care Section */}
+              <Grid item xs={12}>
+                <Divider sx={{ my: 2 }} />
+                <Typography variant="subtitle1" gutterBottom>
+                  Materials & Care
+                </Typography>
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  label="Material"
+                  name="material"
+                  value={formData.specifications.Material}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      specifications: {
+                        ...prev.specifications,
+                        Material: e.target.value,
+                      },
+                    }))
+                  }
+                  placeholder="100% Premium Cotton"
+                />
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  label="Care Instructions"
+                  name="care"
+                  value={formData.specifications.Care}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      specifications: {
+                        ...prev.specifications,
+                        Care: e.target.value,
+                      },
+                    }))
+                  }
+                  multiline
+                  rows={3}
+                  placeholder="Machine wash cold with similar colors,
+Use mild detergent only,
+Do not bleach"
+                />
+              </Grid>
 
               {/* Product Flags Section */}
               <Grid item xs={12}>
@@ -1276,6 +1397,24 @@ const [colorsInput, setColorsInput] = useState(formData.colors.join(", "));
                     />
                   }
                   label="Beaten Launch Sale Drop 1"
+                />
+              </Grid>
+              <Grid item xs={12} md={3}>
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={formData.isBeatenExclusive}
+                      onChange={(e) =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          isBeatenExclusive: e.target.checked,
+                        }))
+                      }
+                      name="isBeatenExclusive"
+                      color="primary"
+                    />
+                  }
+                  label="Beaten Exclusive"
                 />
               </Grid>
 

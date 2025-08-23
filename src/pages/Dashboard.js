@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
+import axios from "axios";
 import {
   Box,
   Grid,
@@ -98,10 +99,54 @@ function Dashboard() {
       const salesData = salesResponse.data.data;
       const subscriptionData = subscriptionResponse.data.data;
 
+      // Debug logging for dashboard sales data
+      console.log("=== Dashboard Sales Debug ===");
+      console.log("Sales API response:", salesData);
+      console.log("Today's sales from API:", salesData.todaySales);
+      console.log("=== End Dashboard Sales Debug ===");
+
+      // Get orders data to calculate today's sales the same way as Analytics
+      let calculatedTodaySales = salesData.todaySales || 0; // Fallback to API value
+      
+      try {
+        // Fetch orders to calculate today's sales consistently with Analytics
+        const ordersApiResponse = await axios.get(`${process.env.REACT_APP_API_URL || "http://localhost:8000/api"}/orders`);
+        const allOrders = ordersApiResponse.data.data || [];
+        
+        // Calculate today's sales the same way as Analytics
+        const today = new Date();
+        const todayStr = today.toLocaleDateString();
+        const todayISO = today.toISOString().split('T')[0];
+        
+        const todaySales = allOrders
+          .filter((order) => {
+            const orderDate = new Date(order.createdAt).toLocaleDateString();
+            const orderDateISO = new Date(order.createdAt).toISOString().split('T')[0];
+            return orderDate === todayStr || orderDateISO === todayISO;
+          })
+          .flatMap((order) =>
+            order.orderItems.map((item) => ({
+              total: +(item.price * item.quantity).toFixed(2), // Incl. GST
+            }))
+          );
+        
+        calculatedTodaySales = todaySales.reduce((sum, row) => sum + (row.total || 0), 0);
+        
+        console.log("=== Dashboard Today's Sales Calculation ===");
+        console.log("API today's sales:", salesData.todaySales);
+        console.log("Calculated today's sales (like Analytics):", calculatedTodaySales);
+        console.log("Using calculated value for consistency");
+        console.log("=== End Dashboard Calculation ===");
+        
+      } catch (ordersError) {
+        console.error("Failed to fetch orders for today's sales calculation:", ordersError);
+        console.log("Falling back to API value:", salesData.todaySales);
+      }
+
       // Transform API data to match our dashboard structure
       const transformedData = {
-        // Sales data from sales endpoint
-        todaySales: salesData.todaySales || 0,
+        // Sales data - use calculated today's sales for consistency with Analytics
+        todaySales: calculatedTodaySales,
         monthlySales: salesData.monthlySales || 0,
         paid: salesData.paid || 0,
         gst: salesData.gst || 0,

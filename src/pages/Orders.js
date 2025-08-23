@@ -80,6 +80,24 @@ import { formatPrice } from "../utils/format";
 import Snackbar from "@mui/material/Snackbar";
 import MuiAlert from "@mui/material/Alert";
 
+// Helper function to construct full image URL from filename
+const getImageUrl = (imageInput) => {
+  if (!imageInput) return "/default-product.png";
+  
+  // If it's already a full URL (contains http/https), return as is
+  if (typeof imageInput === 'string' && (imageInput.includes('http://') || imageInput.includes('https://'))) {
+    return imageInput;
+  }
+  
+  // If it's just a filename, construct the full Cloudinary URL
+  if (typeof imageInput === 'string' && !imageInput.includes('/')) {
+    return `https://res.cloudinary.com/di9lv1bgh/image/upload/v1755963041/beaten-products/${imageInput}`;
+  }
+  
+  // Fallback for other cases
+  return imageInput || "/default-product.png";
+};
+
 // Change validation to lowercase
 
 const sortOptions = [
@@ -116,7 +134,7 @@ function Orders() {
 
 const [selectedOrderId, setSelectedOrderId] = useState(null);
 const [selectedOrderItems, setSelectedOrderItems] = useState([]);
-const [openDialogview, setOpenDialogView] = useState(false);
+const [openDialogView, setOpenDialogView] = useState(false);
 
 
 
@@ -593,7 +611,7 @@ const [openDialogview, setOpenDialogView] = useState(false);
                   {order.items.map((item, index) => (
                     <ListItem key={index}>
                       <ListItemAvatar>
-                        <Avatar src={item.image} variant="rounded" />
+                        <Avatar src={getImageUrl(item.image)} variant="rounded" />
                       </ListItemAvatar>
                       <ListItemText
                         primary={item.product}
@@ -1215,7 +1233,14 @@ const [openDialogview, setOpenDialogView] = useState(false);
       size="small"
       onClick={() => {
         setSelectedOrderId(order.orderId);
-        setSelectedOrderItems(order.orderItems);
+        // Ensure each order item handles all possible image formats from backend
+        const orderItemsWithImages = order.orderItems.map(item => ({
+          ...item,
+          // Priority: 1. Direct imageUrl from backend, 2. First image in images array, 3. Single image property
+          // Apply proper URL construction for all image sources
+          imageUrl: getImageUrl(item.imageUrl || (item.images && item.images.length > 0 ? item.images[0] : item.image || ""))
+        }));
+        setSelectedOrderItems(orderItemsWithImages);
         setOpenDialogView(true);
       }}
     >
@@ -1373,53 +1398,80 @@ const [openDialogview, setOpenDialogView] = useState(false);
       </Snackbar>
 
 <Dialog
-  open={openDialogview}
+  open={openDialogView}
   onClose={() => setOpenDialogView(false)}
   fullWidth
   maxWidth="md"
+  PaperProps={{
+    sx: { minHeight: '50vh' }
+  }}
+  keepMounted={false}
 >
-  <DialogTitle>
+  <DialogTitle sx={{ borderBottom: '1px solid #eaeaea', fontWeight: 'bold' }}>
     Products for Order ID: {selectedOrderId}
   </DialogTitle>
 
   <DialogContent dividers>
-    <Table>
-      <TableHead>
-        <TableRow>
-          <TableCell>Image</TableCell>
-          <TableCell>SKU</TableCell>
-          <TableCell>Name</TableCell>
-          <TableCell>Color</TableCell>
-          <TableCell>Size</TableCell>
-          <TableCell>Quantity</TableCell>
-          <TableCell>Price</TableCell>
-        </TableRow>
-      </TableHead>
-
-      <TableBody>
-        {selectedOrderItems.map((item, index) => (
-          <TableRow key={item._id || index}>
-            <TableCell>
-              <img
-                src={`https://images.unsplash.com/${item.image}`}
-                alt={item.name}
-                style={{ width: 50, height: 50, objectFit: 'cover' }}
-              />
-            </TableCell>
-            <TableCell>{item.sku}</TableCell>
-            <TableCell>{item.name}</TableCell>
-            <TableCell>{item.color}</TableCell>
-            <TableCell>{item.size}</TableCell>
-            <TableCell>{item.quantity}</TableCell>
-            <TableCell>₹{item.price}</TableCell>
+    <TableContainer sx={{ maxHeight: '60vh', overflowY: 'auto' }}>
+      <Table stickyHeader>
+        <TableHead>
+          <TableRow>
+            <TableCell>Image</TableCell>
+            <TableCell>SKU</TableCell>
+            <TableCell>Name</TableCell>
+            <TableCell>Color</TableCell>
+            <TableCell>Size</TableCell>
+            <TableCell>Quantity</TableCell>
+            <TableCell>Price</TableCell>
           </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+        </TableHead>
+
+        <TableBody>
+          {selectedOrderItems.map((item, index) => (
+            <TableRow key={item._id || index} hover>
+              <TableCell>
+                <Box 
+                  sx={{
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    position: 'relative'
+                  }}
+                >
+                  <img
+                    src={item.imageUrl || getImageUrl(item.images && item.images.length > 0 ? item.images[0] : item.image)}
+                    alt={item.name}
+                    style={{ 
+                      width: 60, 
+                      height: 60, 
+                      objectFit: 'cover', 
+                      border: '1px solid #eaeaea', 
+                      borderRadius: '4px',
+                      cursor: 'pointer'
+                    }}
+                    onError={(e) => {e.target.onerror = null; e.target.src = "/default-product.png"}}
+                  />
+                </Box>
+              </TableCell>
+              <TableCell>{item.sku}</TableCell>
+              <TableCell>{item.name}</TableCell>
+              <TableCell>{item.color}</TableCell>
+              <TableCell>{item.size}</TableCell>
+              <TableCell>{item.quantity}</TableCell>
+              <TableCell>₹{item.price}</TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </TableContainer>
   </DialogContent>
 
-  <DialogActions>
-    <Button onClick={() => setOpenDialogView(false)} color="primary">
+  <DialogActions sx={{ borderTop: '1px solid #eaeaea', padding: '16px' }}>
+    <Button 
+      onClick={() => setOpenDialogView(false)} 
+      variant="contained" 
+      color="primary"
+    >
       Close
     </Button>
   </DialogActions>
