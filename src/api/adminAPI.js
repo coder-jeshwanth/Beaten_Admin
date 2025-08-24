@@ -2,7 +2,7 @@ import axios from "axios";
 
 // Create axios instance for admin API
 const adminAPI = axios.create({
-  baseURL: process.env.REACT_APP_API_URL || "http://localhost:8000/api",
+  baseURL: process.env.REACT_APP_API_URL || "https://beaten-backend-2-0-kuya.onrender.com/api",
   timeout: 10000,
   headers: {
     "Content-Type": "application/json",
