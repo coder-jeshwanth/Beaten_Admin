@@ -24,6 +24,10 @@ import {
   Step,
   StepLabel,
   StepConnector,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import AssignmentReturnIcon from "@mui/icons-material/AssignmentReturn";
@@ -37,12 +41,16 @@ const statusColors = {
   pending: "warning",
   approved: "success",
   rejected: "error",
+  return_rejected: "error",
+  completed: "success",
 };
 
 const statusIcons = {
   pending: <PendingIcon fontSize="small" />,
   approved: <CheckCircleIcon fontSize="small" />,
   rejected: <CancelIcon fontSize="small" />,
+  return_rejected: <CancelIcon fontSize="small" />,
+  completed: <CheckCircleIcon fontSize="small" />,
 };
 
 // Stepper configuration
@@ -52,7 +60,20 @@ const getActiveStep = (status, isReceived) => {
   if (status === "pending") return 0;
   if (status === "approved" && !isReceived) return 1;
   if (status === "approved" && isReceived) return 2;
+  if (status === "return_completed") return 2; // Show completed step for return_completed status
   return 0;
+};
+
+// Status confirmation messages
+const getStatusConfirmMessage = (status) => {
+  const messages = {
+    pending: "Are you sure you want to change this return status to Pending?",
+    approved: "Are you sure you want to approve this return request? This will allow the customer to return the product.",
+    rejected: "Are you sure you want to reject this return request? The customer will be notified.",
+    return_rejected: "Are you sure you want to reject the returned product? This action will notify the customer.",
+    completed: "Are you sure you want to mark this return as completed? This will update the order status to 'return_completed' and finalize the return process."
+  };
+  return messages[status] || "Are you sure you want to change the status?";
 };
 
 // Custom Stepper Component
@@ -67,12 +88,12 @@ const CustomReturnStepper = ({ status, isReceived }) => {
         connector={<StepConnector sx={{ '& .MuiStepConnector-line': { borderColor: '#e0e0e0' } }} />}
       >
         {stepperSteps.map((label, index) => (
-          <Step key={label} completed={index < activeStep}>
+          <Step key={label} completed={index < activeStep || status === "return_completed"}>
             <StepLabel
               sx={{
                 '& .MuiStepLabel-label': {
                   color: index === 2 ? '#000000' : '#4caf50', // Black for Completed, Green for others
-                  fontWeight: index <= activeStep ? 600 : 400,
+                  fontWeight: index <= activeStep || status === "return_completed" ? 600 : 400,
                 },
                 '& .MuiStepIcon-root': {
                   color: index === 2 ? '#000000' : '#4caf50', // Black for Completed, Green for others
@@ -106,6 +127,10 @@ const Returns = () => {
   const [search, setSearch] = useState("");
   const [receivedMap, setReceivedMap] = useState({}); // Track received state per return
   const [receivedLoading, setReceivedLoading] = useState({}); // Track loading state per return
+  const [statusLoading, setStatusLoading] = useState({}); // Track status change loading per return
+  const [confirmDialog, setConfirmDialog] = useState({ open: false, returnId: null, newStatus: null });
+  const [orderDetails, setOrderDetails] = useState({}); // Store order details by order ID
+  const [productDetails, setProductDetails] = useState({}); // Store product details by product ID
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
   const [rejectingReturnId, setRejectingReturnId] = useState(null);
@@ -120,7 +145,25 @@ const Returns = () => {
       const response = await axios.get(`${apiUrl}/admin/returns`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      setReturns(response.data.data || []);
+      const returnsData = response.data.data || [];
+      console.log("Raw returns data:", returnsData);
+      setReturns(returnsData);
+      
+      // Initialize receivedMap with the received field from API response
+      const initialReceivedMap = {};
+      returnsData.forEach(ret => {
+        initialReceivedMap[ret._id] = ret.received || false;
+      });
+      setReceivedMap(initialReceivedMap);
+      console.log("Initialized receivedMap:", initialReceivedMap);
+      
+      // Try to fetch order and product details for each return
+      // But also handle the case where this might fail
+      try {
+        await fetchOrderAndProductDetails(returnsData, token, apiUrl);
+      } catch (err) {
+        console.error("Failed to fetch additional details, using raw data:", err);
+      }
     } catch (err) {
       setError(
         err?.response?.data?.message ||
@@ -129,6 +172,70 @@ const Returns = () => {
       );
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Function to fetch order and product details
+  const fetchOrderAndProductDetails = async (returnsData, token, apiUrl) => {
+    const orderIds = [...new Set(returnsData.map(ret => ret.orderId).filter(Boolean))];
+    const productIds = [...new Set(returnsData.map(ret => ret.productId).filter(Boolean))];
+
+    console.log("Fetching details for orderIds:", orderIds);
+    console.log("Fetching details for productIds:", productIds);
+
+    // Fetch order details
+    const orderPromises = orderIds.map(async (orderId) => {
+      try {
+        console.log(`Fetching order details for: ${orderId}`);
+        const response = await axios.get(`${apiUrl}/orders/${orderId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        console.log(`Order ${orderId} response:`, response.data);
+        return { id: orderId, data: response.data.data || response.data };
+      } catch (err) {
+        console.error(`Failed to fetch order ${orderId}:`, err);
+        return { id: orderId, data: { orderId: orderId } };
+      }
+    });
+
+    // Fetch product details
+    const productPromises = productIds.map(async (productId) => {
+      try {
+        console.log(`Fetching product details for: ${productId}`);
+        const response = await axios.get(`${apiUrl}/admin/products/${productId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        console.log(`Product ${productId} response:`, response.data);
+        return { id: productId, data: response.data.data || response.data };
+      } catch (err) {
+        console.error(`Failed to fetch product ${productId}:`, err);
+        return { id: productId, data: { name: productId } };
+      }
+    });
+
+    try {
+      const [orderResults, productResults] = await Promise.all([
+        Promise.all(orderPromises),
+        Promise.all(productPromises)
+      ]);
+
+      // Store order details
+      const orderDetailsMap = {};
+      orderResults.forEach(result => {
+        orderDetailsMap[result.id] = result.data;
+      });
+      console.log("Final orderDetailsMap:", orderDetailsMap);
+      setOrderDetails(orderDetailsMap);
+
+      // Store product details
+      const productDetailsMap = {};
+      productResults.forEach(result => {
+        productDetailsMap[result.id] = result.data;
+      });
+      console.log("Final productDetailsMap:", productDetailsMap);
+      setProductDetails(productDetailsMap);
+    } catch (err) {
+      console.error("Failed to fetch order/product details:", err);
     }
   };
 
@@ -199,6 +306,84 @@ const Returns = () => {
     setRejectingReturnId(returnId);
     setRejectReason("");
     setRejectDialogOpen(true);
+  };
+
+  // Handler for dropdown status changes
+  const handleDropdownStatusChange = async (returnId, newStatus) => {
+    // Show confirmation dialog for all status changes
+    setConfirmDialog({ open: true, returnId, newStatus });
+  };
+
+  // Handle confirmed status change
+  const handleConfirmedStatusChange = async () => {
+    const { returnId, newStatus } = confirmDialog;
+    setConfirmDialog({ open: false, returnId: null, newStatus: null });
+
+    if (newStatus === "return_rejected") {
+      // Open rejection dialog for return_rejected
+      setRejectingReturnId(returnId);
+      setRejectDialogOpen(true);
+    } else if (newStatus === "completed") {
+      // Handle completed status by updating the order status
+      setStatusLoading((prev) => ({ ...prev, [returnId]: true }));
+      try {
+        // Find the return object to get the orderId
+        const returnObj = returns.find(ret => ret._id === returnId);
+        if (!returnObj) {
+          throw new Error("Return object not found");
+        }
+
+        // Debug: Log the return object structure
+        console.log("Return object structure:", returnObj);
+
+        // Extract the order ObjectId for the API call
+        const actualOrderId = returnObj.orderObjectId;
+        if (!actualOrderId) {
+          throw new Error("Order ObjectId not found for this return");
+        }
+
+        console.log("Using order ObjectId for API call:", actualOrderId);
+
+        const token = localStorage.getItem("admin_token");
+        const apiUrl = process.env.REACT_APP_API_URL || "http://localhost:8000/api";
+        
+        // Call the orders API to mark as return_completed
+        await axios.put(
+          `${apiUrl}/orders/${actualOrderId}/status`,
+          { status: "return_completed" },
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
+
+        setSnackbar({
+          open: true,
+          message: "Return marked as completed successfully!",
+          severity: "success",
+        });
+        
+        // Refresh the returns data
+        fetchReturns();
+      } catch (err) {
+        setSnackbar({
+          open: true,
+          message: err?.response?.data?.message || err?.message || "Failed to complete return.",
+          severity: "error",
+        });
+      } finally {
+        setStatusLoading((prev) => ({ ...prev, [returnId]: false }));
+      }
+    } else {
+      // Set loading state
+      setStatusLoading((prev) => ({ ...prev, [returnId]: true }));
+      try {
+        // Direct status update for other statuses
+        await handleStatusChange(returnId, newStatus);
+      } finally {
+        // Clear loading state
+        setStatusLoading((prev) => ({ ...prev, [returnId]: false }));
+      }
+    }
   };
   const handleCloseRejectDialog = () => {
     setRejectDialogOpen(false);
@@ -307,7 +492,17 @@ const Returns = () => {
       ) : (
         <Grid container spacing={3}>
           {filteredReturns.map((ret) => {
-            const isReceived = receivedMap[ret._id] || false;
+            // Use the received field from API response, but allow local state to override
+            const isReceived = receivedMap[ret._id] !== undefined ? receivedMap[ret._id] : (ret.received || false);
+            
+            // Debug logging
+            console.log("Return object:", ret);
+            console.log("API received value:", ret.received);
+            console.log("Local receivedMap value:", receivedMap[ret._id]);
+            console.log("Final isReceived value:", isReceived);
+            console.log("Order details for", ret.orderId, ":", orderDetails[ret.orderId]);
+            console.log("Product details for", ret.productId, ":", productDetails[ret.productId]);
+            
             return (
               <Grid item xs={12} md={6} lg={6} key={ret._id}>
                 <Paper
@@ -335,13 +530,22 @@ const Returns = () => {
                         variant="body2"
                         sx={{ color: "text.secondary" }}
                       >
-                        Order: <b>{ret.orderId}</b>
+                        Order: <b>
+                          {orderDetails[ret.orderId]?.orderId || 
+                           orderDetails[ret.orderId]?.orderNumber || 
+                           `Loading... (${ret.orderId})`}
+                        </b>
                       </Typography>
                       <Typography
                         variant="body2"
                         sx={{ color: "text.secondary" }}
                       >
-                        Product: <b>{ret.productId}</b>
+                        Product: <b>
+                          {ret.productName || 
+                           productDetails[ret.productId]?.name || 
+                           productDetails[ret.productId]?.title ||
+                           `Loading... (${ret.productId})`}
+                        </b>
                       </Typography>
                       <Typography
                         variant="body2"
@@ -380,37 +584,73 @@ const Returns = () => {
                     </Typography>
                   </Box>
                   
-                  {/* Show stepper only when status is approved */}
-                  {ret.status === "approved" && (
+                  {/* Show stepper when status is approved or return_completed */}
+                  {(ret.status === "approved" || ret.status === "return_completed") && (
                     <CustomReturnStepper 
                       status={ret.status} 
                       isReceived={isReceived}
                     />
                   )}
                   
-                  <Box sx={{ display: "flex", gap: 2, mt: 1 }}>
-                    <Button
-                      variant="contained"
-                      color="success"
-                      size="small"
-                      fullWidth
-                      startIcon={<CheckCircleIcon />}
-                      disabled={ret.status === "approved"}
-                      onClick={() => handleStatusChange(ret._id, "approved")}
-                    >
-                      Approve
-                    </Button>
-                    <Button
-                      variant="outlined"
-                      color="error"
-                      size="small"
-                      fullWidth
-                      startIcon={<CancelIcon />}
-                      disabled={ret.status === "return_rejected"}
-                      onClick={() => handleOpenRejectDialog(ret._id)}
-                    >
-                      Reject
-                    </Button>
+                  {/* Status Management Dropdown */}
+                  <Box sx={{ display: "flex", gap: 2, mt: 1, alignItems: "center" }}>
+                    <FormControl size="small" sx={{ minWidth: 200, flex: 1 }}>
+                      <InputLabel id={`status-select-label-${ret._id}`}>
+                        Change Status
+                      </InputLabel>
+                      <Select
+                        labelId={`status-select-label-${ret._id}`}
+                        value={ret.status === "return_completed" ? "completed" : (ret.status || "pending")}
+                        label="Change Status"
+                        onChange={(e) => handleDropdownStatusChange(ret._id, e.target.value)}
+                        size="small"
+                        disabled={statusLoading[ret._id] || false}
+                        sx={{
+                          '& .MuiSelect-select': {
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 1
+                          }
+                        }}
+                      >
+                        <MenuItem value="pending">
+                          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                            <Chip size="small" label="Pending" color="warning" />
+                            <Typography variant="body2">- Awaiting Review</Typography>
+                          </Box>
+                        </MenuItem>
+                        <MenuItem value="approved">
+                          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                            <Chip size="small" label="Approved" color="success" />
+                            <Typography variant="body2">- Return Accepted</Typography>
+                          </Box>
+                        </MenuItem>
+                        <MenuItem value="rejected">
+                          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                            <Chip size="small" label="Rejected" color="error" />
+                            <Typography variant="body2">- Return Denied</Typography>
+                          </Box>
+                        </MenuItem>
+                        <MenuItem value="return_rejected">
+                          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                            <Chip size="small" label="Return Rejected" color="error" />
+                            <Typography variant="body2">- Product Return Denied</Typography>
+                          </Box>
+                        </MenuItem>
+                        <MenuItem value="completed">
+                          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                            <Chip size="small" label="Completed" color="primary" />
+                            <Typography variant="body2">- Finalize Return Process</Typography>
+                          </Box>
+                        </MenuItem>
+                      </Select>
+                      {statusLoading[ret._id] && (
+                        <Box sx={{ position: 'absolute', right: 40, top: '50%', transform: 'translateY(-50%)' }}>
+                          <CircularProgress size={16} />
+                        </Box>
+                      )}
+                    </FormControl>
+                    
                     {/* Enhanced Toggle Button: Only show if approved */}
                     {ret.status === "approved" && (
                       <Tooltip
@@ -484,6 +724,53 @@ const Returns = () => {
       >
         <Alert severity={snackbar.severity}>{snackbar.message}</Alert>
       </Snackbar>
+
+      {/* Status Change Confirmation Dialog */}
+      <Dialog
+        open={confirmDialog.open}
+        onClose={() => setConfirmDialog({ open: false, returnId: null, newStatus: null })}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Confirm Status Change</DialogTitle>
+        <DialogContent>
+          <Typography variant="body1" sx={{ mb: 2 }}>
+            {confirmDialog.newStatus && getStatusConfirmMessage(confirmDialog.newStatus)}
+          </Typography>
+          {confirmDialog.newStatus && (
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1, p: 2, bgcolor: "grey.50", borderRadius: 1 }}>
+              <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                New Status:
+              </Typography>
+              <Chip 
+                size="small" 
+                label={confirmDialog.newStatus?.charAt(0).toUpperCase() + confirmDialog.newStatus?.slice(1)} 
+                color={
+                  confirmDialog.newStatus === "approved" ? "success" :
+                  confirmDialog.newStatus === "pending" ? "warning" : 
+                  confirmDialog.newStatus === "completed" ? "primary" : "error"
+                }
+              />
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setConfirmDialog({ open: false, returnId: null, newStatus: null })}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleConfirmedStatusChange}
+            variant="contained"
+            color={
+              confirmDialog.newStatus === "approved" ? "success" : 
+              confirmDialog.newStatus === "completed" ? "primary" : "primary"
+            }
+          >
+            Confirm
+          </Button>
+        </DialogActions>
+      </Dialog>
+
       {/* Reject Reason Dialog */}
       <Dialog
         open={rejectDialogOpen}
