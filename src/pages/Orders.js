@@ -80,22 +80,63 @@ import { formatPrice } from "../utils/format";
 import Snackbar from "@mui/material/Snackbar";
 import MuiAlert from "@mui/material/Alert";
 
-// Helper function to construct full image URL from filename
+// Helper function to construct proper Cloudinary URL
 const getImageUrl = (imageInput) => {
-  if (!imageInput) return "/default-product.png";
+  // Add debugging to see what's coming from backend
+  console.log("=== Image URL Debug ===");
+  console.log("Input:", imageInput);
+  console.log("Type:", typeof imageInput);
   
-  // If it's already a full URL (contains http/https), return as is
-  if (typeof imageInput === 'string' && (imageInput.includes('http://') || imageInput.includes('https://'))) {
-    return imageInput;
+  // Handle null/undefined/empty cases
+  if (!imageInput) {
+    console.log("Empty input, returning default");
+    return "/default-product.png";
   }
   
-  // If it's just a filename, construct the full Cloudinary URL
-  if (typeof imageInput === 'string' && !imageInput.includes('/')) {
-    return `https://res.cloudinary.com/di9lv1bgh/image/upload/v1755963041/beaten-products/${imageInput}`;
+  try {
+    if (typeof imageInput === 'string' && imageInput.trim()) {
+      const trimmedInput = imageInput.trim();
+      console.log("Trimmed input:", trimmedInput);
+      
+      // If it's a Cloudinary URL, extract just the filename
+      if (trimmedInput.includes('cloudinary.com')) {
+        console.log("Detected Cloudinary URL");
+        // Extract filename from the end of the URL
+        const filename = trimmedInput.split('/').pop();
+        console.log("Extracted filename:", filename);
+        if (filename && filename.includes('.')) {
+          // Reconstruct with proper version and folder path
+          const finalUrl = `https://res.cloudinary.com/di9lv1bgh/image/upload/v1755963041/beaten-products/${filename}`;
+          console.log("Final reconstructed URL:", finalUrl);
+          return finalUrl;
+        }
+      }
+      
+      // If it's just a filename (no slashes), construct the full URL
+      if (!trimmedInput.includes('/')) {
+        console.log("Detected filename only");
+        const finalUrl = `https://res.cloudinary.com/di9lv1bgh/image/upload/v1755963041/beaten-products/${trimmedInput}`;
+        console.log("Final constructed URL:", finalUrl);
+        return finalUrl;
+      }
+      
+      // If it's already a properly formatted URL, return as-is
+      if (trimmedInput.includes('v1755963041/beaten-products/')) {
+        console.log("Already properly formatted, returning as-is");
+        return trimmedInput;
+      }
+      
+      // For any other case, return as-is
+      console.log("Other case, returning as-is:", trimmedInput);
+      return trimmedInput;
+    }
+    
+    console.log("Fallback to default");
+    return "/default-product.png";
+  } catch (error) {
+    console.error("Error processing image URL:", error);
+    return "/default-product.png";
   }
-  
-  // Fallback for other cases
-  return imageInput || "/default-product.png";
 };
 
 // Change validation to lowercase
@@ -135,6 +176,7 @@ function Orders() {
 const [selectedOrderId, setSelectedOrderId] = useState(null);
 const [selectedOrderItems, setSelectedOrderItems] = useState([]);
 const [openDialogView, setOpenDialogView] = useState(false);
+const [imageLoadingStates, setImageLoadingStates] = useState({});
 
 
 
@@ -1233,13 +1275,43 @@ const [openDialogView, setOpenDialogView] = useState(false);
       size="small"
       onClick={() => {
         setSelectedOrderId(order.orderId);
+        
+        // Reset loading states
+        setImageLoadingStates({});
+        
         // Ensure each order item handles all possible image formats from backend
-        const orderItemsWithImages = order.orderItems.map(item => ({
-          ...item,
-          // Priority: 1. Direct imageUrl from backend, 2. First image in images array, 3. Single image property
-          // Apply proper URL construction for all image sources
-          imageUrl: getImageUrl(item.imageUrl || (item.images && item.images.length > 0 ? item.images[0] : item.image || ""))
-        }));
+        const orderItemsWithImages = order.orderItems.map(item => {
+          // Build the proper URL once
+          const imageUrl = getImageUrl(item.imageUrl || (item.images && item.images.length > 0 ? item.images[0] : item.image || ""));
+          
+          // Set initial loading state for this image
+          setImageLoadingStates(prev => ({
+            ...prev,
+            [imageUrl]: true
+          }));
+          
+          // Preload the image
+          const img = new Image();
+          img.onload = () => {
+            setImageLoadingStates(prev => ({
+              ...prev,
+              [imageUrl]: false
+            }));
+          };
+          img.onerror = () => {
+            setImageLoadingStates(prev => ({
+              ...prev,
+              [imageUrl]: false
+            }));
+          };
+          img.src = imageUrl;
+          
+          return {
+            ...item,
+            imageUrl
+          };
+        });
+        
         setSelectedOrderItems(orderItemsWithImages);
         setOpenDialogView(true);
       }}
@@ -1438,19 +1510,50 @@ const [openDialogView, setOpenDialogView] = useState(false);
                     position: 'relative'
                   }}
                 >
-                  <img
-                    src={item.imageUrl || getImageUrl(item.images && item.images.length > 0 ? item.images[0] : item.image)}
-                    alt={item.name}
-                    style={{ 
-                      width: 60, 
-                      height: 60, 
-                      objectFit: 'cover', 
-                      border: '1px solid #eaeaea', 
+                  <Box
+                    sx={{
+                      width: 60,
+                      height: 60,
+                      position: 'relative',
+                      border: '1px solid #eaeaea',
                       borderRadius: '4px',
-                      cursor: 'pointer'
+                      display: 'flex',
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      overflow: 'hidden',
+                      backgroundColor: '#f8f8f8'
                     }}
-                    onError={(e) => {e.target.onerror = null; e.target.src = "/default-product.png"}}
-                  />
+                  >
+                    {imageLoadingStates[item.imageUrl] && (
+                      <CircularProgress size={20} sx={{ position: 'absolute', zIndex: 1 }} />
+                    )}
+                    <img
+                      src={item.imageUrl || "/default-product.png"}
+                      alt={item.name}
+                      style={{ 
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'cover',
+                        cursor: 'pointer',
+                        opacity: imageLoadingStates[item.imageUrl] ? 0.3 : 1,
+                        transition: 'opacity 0.3s ease'
+                      }}
+                      onError={(e) => {
+                        e.target.onerror = null; 
+                        e.target.src = "/default-product.png";
+                        setImageLoadingStates(prev => ({
+                          ...prev,
+                          [item.imageUrl]: false
+                        }));
+                      }}
+                      onLoad={() => {
+                        setImageLoadingStates(prev => ({
+                          ...prev,
+                          [item.imageUrl]: false
+                        }));
+                      }}
+                    />
+                  </Box>
                 </Box>
               </TableCell>
               <TableCell>{item.sku}</TableCell>
