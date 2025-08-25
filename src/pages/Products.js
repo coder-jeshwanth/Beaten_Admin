@@ -795,16 +795,17 @@ const [colorsInput, setColorsInput] = useState(formData.colors.join(", "));
           updatedData.subCategory = '';
         }
         
-        // Auto-calculate discount when price or originalPrice changes
-        if (name === 'price' || name === 'originalPrice') {
-          const currentPrice = name === 'price' ? parseFloat(value) || 0 : parseFloat(prev.price) || 0;
+        // Auto-calculate price when originalPrice or discount changes
+        if (name === 'originalPrice' || name === 'discount') {
           const originalPrice = name === 'originalPrice' ? parseFloat(value) || 0 : parseFloat(prev.originalPrice) || 0;
+          const discountPercentage = name === 'discount' ? parseFloat(value) || 0 : parseFloat(prev.discount) || 0;
           
-          if (originalPrice > 0 && currentPrice > 0 && originalPrice > currentPrice) {
-            const discountPercentage = ((originalPrice - currentPrice) / originalPrice) * 100;
-            updatedData.discount = Math.round(discountPercentage * 100) / 100; // Round to 2 decimal places
-          } else {
-            updatedData.discount = 0;
+          if (originalPrice > 0 && discountPercentage >= 0 && discountPercentage <= 100) {
+            const discountAmount = (originalPrice * discountPercentage) / 100;
+            const finalPrice = originalPrice - discountAmount;
+            updatedData.price = Math.round(finalPrice * 100) / 100; // Round to 2 decimal places
+          } else if (originalPrice > 0 && discountPercentage === 0) {
+            updatedData.price = originalPrice;
           }
         }
         
@@ -1129,10 +1130,10 @@ const [colorsInput, setColorsInput] = useState(formData.colors.join(", "));
               <Grid item xs={12} md={4}>
                 <TextField
                   fullWidth
-                  label="Price *"
-                  name="price"
+                  label="Original Price *"
+                  name="originalPrice"
                   type="number"
-                  value={formData.price}
+                  value={formData.originalPrice}
                   onChange={handleChange}
                   InputProps={{
                     startAdornment: (
@@ -1145,36 +1146,38 @@ const [colorsInput, setColorsInput] = useState(formData.colors.join(", "));
               <Grid item xs={12} md={4}>
                 <TextField
                   fullWidth
-                  label="Original Price"
-                  name="originalPrice"
+                  label="Discount (%)"
+                  name="discount"
                   type="number"
-                  value={formData.originalPrice}
+                  value={formData.discount}
                   onChange={handleChange}
                   InputProps={{
-                    startAdornment: (
-                      <InputAdornment position="start">₹</InputAdornment>
+                    endAdornment: (
+                      <InputAdornment position="end">%</InputAdornment>
                     ),
+                    inputProps: { min: 0, max: 100, step: 0.01 }
                   }}
+                  helperText="Enter discount percentage (0-100%)"
                 />
               </Grid>
               <Grid item xs={12} md={4}>
                 <Box>
                   <TextField
                     fullWidth
-                    label="Discount (%) - Auto Calculated"
-                    name="discount"
+                    label="Final Price - Auto Calculated"
+                    name="price"
                     type="number"
-                    value={formData.discount}
+                    value={formData.price}
                     InputProps={{
                       readOnly: true,
-                      endAdornment: (
-                        <InputAdornment position="end">%</InputAdornment>
+                      startAdornment: (
+                        <InputAdornment position="start">₹</InputAdornment>
                       ),
                     }}
                     helperText={
-                      formData.originalPrice && formData.price && formData.originalPrice > formData.price
-                        ? `Savings: ₹${(parseFloat(formData.originalPrice) - parseFloat(formData.price)).toFixed(2)}`
-                        : "Automatically calculated based on original price and current price"
+                      formData.originalPrice && formData.discount > 0
+                        ? `You save: ₹${(parseFloat(formData.originalPrice) - parseFloat(formData.price)).toFixed(2)}`
+                        : "Automatically calculated based on original price and discount"
                     }
                     sx={{
                       '& .MuiInputBase-input': {

@@ -40,7 +40,7 @@ export const AuthProvider = ({ children }) => {
         localStorage.setItem("admin_token", res.data.token);
         setUser(res.data);
         setError(null);
-        showSuccess("Login successful! Welcome back.");
+        // Removed success toast message for login
         return res.data;
       } else {
         const errorMessage = "No token received from server";
@@ -82,10 +82,10 @@ export const AuthProvider = ({ children }) => {
   const logout = async () => {
     try {
       await authAPI.logout();
-      showSuccess("Logged out successfully");
+      // Removed success toast message for logout
     } catch (err) {
       console.error("Logout error:", err);
-      showWarning("Logout completed (some cleanup may have failed)");
+      // Removed warning toast message for logout cleanup failure
     } finally {
       localStorage.removeItem("admin_token");
       setUser(null);
