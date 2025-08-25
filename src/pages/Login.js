@@ -247,7 +247,7 @@ function Login() {
           }}
         >
           <img
-            src="/logo.png"
+            src="/Logo.png"
             alt="BEATEN"
             style={{ width: "150px", marginBottom: "2rem" }}
           />
