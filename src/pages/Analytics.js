@@ -49,6 +49,22 @@ function Analytics() {
   const [addSuccess, setAddSuccess] = useState("");
   const [addError, setAddError] = useState("");
 
+  // Bulk Message dialog state
+  const [bulkMessageDialogOpen, setBulkMessageDialogOpen] = useState(false);
+  const [bulkMessageSubject, setBulkMessageSubject] = useState("");
+  const [bulkMessageContent, setBulkMessageContent] = useState("");
+  const [bulkMessageLoading, setBulkMessageLoading] = useState(false);
+  const [bulkMessageSuccess, setBulkMessageSuccess] = useState("");
+  const [bulkMessageError, setBulkMessageError] = useState("");
+
+  // Send Reminder dialog state
+  const [reminderDialogOpen, setReminderDialogOpen] = useState(false);
+  const [selectedSubscription, setSelectedSubscription] = useState(null);
+  const [reminderMessage, setReminderMessage] = useState("");
+  const [reminderLoading, setReminderLoading] = useState(false);
+  const [reminderSuccess, setReminderSuccess] = useState("");
+  const [reminderError, setReminderError] = useState("");
+
   // Real Add Member handlers
   const handleOpenAddDialog = () => {
     setAddDialogOpen(true);
@@ -109,6 +125,71 @@ function Analytics() {
       setAddError(errorMessage);
     } finally {
       setAddLoading(false);
+    }
+  };
+
+  // Bulk Message handlers
+  const handleOpenBulkMessageDialog = () => {
+    setBulkMessageDialogOpen(true);
+    setBulkMessageSubject("");
+    setBulkMessageContent("");
+    setBulkMessageSuccess("");
+    setBulkMessageError("");
+  };
+
+  const handleCloseBulkMessageDialog = () => {
+    setBulkMessageDialogOpen(false);
+    setBulkMessageSubject("");
+    setBulkMessageContent("");
+    setBulkMessageSuccess("");
+    setBulkMessageError("");
+  };
+
+  const handleSendBulkMessage = async () => {
+    if (!bulkMessageSubject.trim()) {
+      setBulkMessageError("Subject is required");
+      return;
+    }
+
+    if (!bulkMessageContent.trim()) {
+      setBulkMessageError("Message content is required");
+      return;
+    }
+
+    setBulkMessageLoading(true);
+    setBulkMessageError("");
+    setBulkMessageSuccess("");
+
+    try {
+      const response = await axios.post(
+        `${BASE_URL}/api/admin/dashboard/send-bulk-message`,
+        {
+          subject: bulkMessageSubject.trim(),
+          message: bulkMessageContent.trim(),
+          includeUnsubscribeLink: true,
+        }
+      );
+
+      if (response.data.success) {
+        const { totalSent, failed, totalUsers } = response.data.data;
+        setBulkMessageSuccess(
+          `Bulk message sent successfully! ${totalSent} sent, ${failed} failed out of ${totalUsers} total users.`
+        );
+        setTimeout(() => {
+          setBulkMessageDialogOpen(false);
+          setBulkMessageSuccess("");
+        }, 3000);
+      } else {
+        setBulkMessageError(response.data.message || "Failed to send bulk message");
+      }
+    } catch (error) {
+      console.error("Error sending bulk message:", error);
+      const errorMessage =
+        error.response?.data?.message ||
+        "Failed to send bulk message. Please try again.";
+      setBulkMessageError(errorMessage);
+    } finally {
+      setBulkMessageLoading(false);
     }
   };
 
@@ -523,23 +604,69 @@ function Analytics() {
   };
 
   // Send subscription reminder handler
-  const handleSendReminder = async (sub) => {
+  const handleSendReminder = (sub) => {
+    setSelectedSubscription(sub);
+    setReminderMessage(`Hi ${sub.name || sub.email}, your subscription will expire soon. Please renew to continue enjoying our services.`);
+    setReminderDialogOpen(true);
+    setReminderSuccess("");
+    setReminderError("");
+  };
+
+  // Handle opening reminder dialog
+  const handleOpenReminderDialog = (subscription) => {
+    setSelectedSubscription(subscription);
+    setReminderMessage(`Hi ${subscription.name || subscription.email}, your subscription will expire soon. Please renew to continue enjoying our services.`);
+    setReminderDialogOpen(true);
+    setReminderSuccess("");
+    setReminderError("");
+  };
+
+  // Handle closing reminder dialog
+  const handleCloseReminderDialog = () => {
+    setReminderDialogOpen(false);
+    setSelectedSubscription(null);
+    setReminderMessage("");
+    setReminderSuccess("");
+    setReminderError("");
+  };
+
+  // Handle actual sending of reminder
+  const handleSendReminderEmail = async () => {
+    if (!selectedSubscription || !reminderMessage.trim()) {
+      setReminderError("Message is required");
+      return;
+    }
+
+    setReminderLoading(true);
+    setReminderError("");
+    setReminderSuccess("");
+
     try {
       const res = await axios.post(
         `${BASE_URL}/api/admin/dashboard/send-subscription-reminder`,
         {
-          email: sub.email,
-          name: sub.name,
-          subscriptionEnd: sub.subscriptionEnd,
+          email: selectedSubscription.email,
+          name: selectedSubscription.name,
+          subscriptionEnd: selectedSubscription.subscriptionEnd,
+          message: reminderMessage.trim(),
         }
       );
+      
       if (res.data.success) {
-        alert("Reminder email sent successfully to " + sub.name);
+        setReminderSuccess("Reminder email sent successfully to " + (selectedSubscription.name || selectedSubscription.email));
+        setTimeout(() => {
+          setReminderDialogOpen(false);
+          setReminderSuccess("");
+        }, 2000);
       } else {
-        alert("Failed to send reminder email.");
+        setReminderError(res.data.message || "Failed to send reminder email.");
       }
     } catch (error) {
-      alert("Failed to send reminder email.");
+      console.error("Error sending reminder:", error);
+      const errorMessage = error.response?.data?.message || "Failed to send reminder email. Please try again.";
+      setReminderError(errorMessage);
+    } finally {
+      setReminderLoading(false);
     }
   };
 
@@ -1611,6 +1738,7 @@ function Analytics() {
               ...buttonStyle,
               minWidth: 140,
             }}
+            onClick={handleOpenBulkMessageDialog}
           >
             Send Reminder
           </button>
@@ -1840,6 +1968,246 @@ function Analytics() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Bulk Message Dialog */}
+      <Dialog
+        open={bulkMessageDialogOpen}
+        onClose={handleCloseBulkMessageDialog}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle
+          sx={{
+            fontWeight: 700,
+            letterSpacing: 0.2,
+            pb: 1,
+            textAlign: "center",
+          }}
+        >
+          Send Bulk Message
+        </DialogTitle>
+        <DialogContent>
+          <Box
+            sx={{
+              p: 2,
+              background: "#f7f8fa",
+              borderRadius: 2,
+              boxShadow: 1,
+              display: "flex",
+              flexDirection: "column",
+              gap: 2,
+              mt: 1,
+            }}
+          >
+            <Typography
+              variant="subtitle1"
+              sx={{
+                fontWeight: 600,
+                mb: 1,
+                color: "#222",
+                textAlign: "center",
+              }}
+            >
+              Send a message to all subscription users
+            </Typography>
+            
+            <AdminForm
+              fields={[
+                {
+                  name: "subject",
+                  label: "Subject",
+                  type: "text",
+                  required: true,
+                  placeholder: "Enter email subject...",
+                  sx: { background: "#fff", borderRadius: 1 },
+                },
+                {
+                  name: "message",
+                  label: "Message",
+                  type: "textarea",
+                  required: true,
+                  placeholder: "Enter your message content here...\n\nYou can use multiple paragraphs by using line breaks.",
+                  rows: 6,
+                  sx: { background: "#fff", borderRadius: 1 },
+                },
+              ]}
+              values={{ 
+                subject: bulkMessageSubject,
+                message: bulkMessageContent 
+              }}
+              errors={bulkMessageError ? { 
+                subject: bulkMessageError.includes("Subject") ? bulkMessageError : "",
+                message: bulkMessageError.includes("Message") ? bulkMessageError : ""
+              } : {}}
+              onChange={(name, value) => {
+                if (name === "subject") {
+                  setBulkMessageSubject(value);
+                } else if (name === "message") {
+                  setBulkMessageContent(value);
+                }
+                if (bulkMessageError) setBulkMessageError(""); // Clear error when user starts typing
+              }}
+            />
+            
+            {bulkMessageLoading && (
+              <Box sx={{ textAlign: "center", mt: 1 }}>
+                <CircularProgress size={28} />
+              </Box>
+            )}
+            
+            {bulkMessageSuccess && (
+              <Typography
+                color="success.main"
+                sx={{ mt: 1, textAlign: "center", fontWeight: 600 }}
+              >
+                {bulkMessageSuccess}
+              </Typography>
+            )}
+            
+            {bulkMessageError && !bulkMessageError.includes("Subject") && !bulkMessageError.includes("Message") && (
+              <Typography
+                color="error.main"
+                sx={{ mt: 1, textAlign: "center", fontWeight: 600 }}
+              >
+                {bulkMessageError}
+              </Typography>
+            )}
+          </Box>
+        </DialogContent>
+        <DialogActions sx={{ justifyContent: "center", pb: 2, pt: 1 }}>
+          <Button
+            onClick={handleCloseBulkMessageDialog}
+            disabled={bulkMessageLoading}
+            sx={{ minWidth: 100, borderRadius: 2 }}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            onClick={handleSendBulkMessage}
+            disabled={bulkMessageLoading || !bulkMessageSubject.trim() || !bulkMessageContent.trim()}
+            sx={{ minWidth: 120, borderRadius: 2, fontWeight: 600 }}
+          >
+            {bulkMessageLoading ? "Sending..." : "Send Message"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Send Reminder Dialog */}
+      <Dialog
+        open={reminderDialogOpen}
+        onClose={handleCloseReminderDialog}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle
+          sx={{
+            fontWeight: 700,
+            letterSpacing: 0.2,
+            pb: 1,
+            textAlign: "center",
+          }}
+        >
+          Send Subscription Reminder
+        </DialogTitle>
+        <DialogContent>
+          <Box
+            sx={{
+              p: 2,
+              background: "#f7f8fa",
+              borderRadius: 2,
+              boxShadow: 1,
+              display: "flex",
+              flexDirection: "column",
+              gap: 2,
+              mt: 1,
+            }}
+          >
+            {selectedSubscription && (
+              <Box sx={{ mb: 2 }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>
+                  Sending reminder to:
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  <strong>Name:</strong> {selectedSubscription.name || "N/A"}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  <strong>Email:</strong> {selectedSubscription.email}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  <strong>Subscription End:</strong> {selectedSubscription.subscriptionEnd ? new Date(selectedSubscription.subscriptionEnd).toLocaleDateString() : "N/A"}
+                </Typography>
+              </Box>
+            )}
+            
+            <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>
+              Reminder Message:
+            </Typography>
+            
+            <AdminForm
+              fields={[
+                {
+                  name: "message",
+                  label: "Reminder Message",
+                  type: "textarea",
+                  required: true,
+                  placeholder: "Enter your reminder message...",
+                  rows: 4,
+                  sx: { background: "#fff", borderRadius: 1 },
+                },
+              ]}
+              values={{ message: reminderMessage }}
+              errors={reminderError ? { message: reminderError } : {}}
+              onChange={(name, value) => {
+                setReminderMessage(value);
+                if (reminderError) setReminderError(""); // Clear error when user starts typing
+              }}
+            />
+            
+            {reminderLoading && (
+              <Box sx={{ textAlign: "center", mt: 1 }}>
+                <CircularProgress size={28} />
+              </Box>
+            )}
+            
+            {reminderSuccess && (
+              <Typography
+                color="success.main"
+                sx={{ mt: 1, textAlign: "center", fontWeight: 600 }}
+              >
+                {reminderSuccess}
+              </Typography>
+            )}
+            
+            {reminderError && (
+              <Typography
+                color="error.main"
+                sx={{ mt: 1, textAlign: "center", fontWeight: 600 }}
+              >
+                {reminderError}
+              </Typography>
+            )}
+          </Box>
+        </DialogContent>
+        <DialogActions sx={{ justifyContent: "center", pb: 2, pt: 1 }}>
+          <Button
+            onClick={handleCloseReminderDialog}
+            disabled={reminderLoading}
+            sx={{ minWidth: 100, borderRadius: 2 }}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            onClick={handleSendReminderEmail}
+            disabled={reminderLoading || !reminderMessage.trim()}
+            sx={{ minWidth: 120, borderRadius: 2, fontWeight: 600 }}
+          >
+            {reminderLoading ? "Sending..." : "Send Reminder"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
       {/* Hidden invoice template for PDF generation */}
       <div
         style={{
