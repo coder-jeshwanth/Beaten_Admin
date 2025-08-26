@@ -42,6 +42,7 @@ const statusColors = {
   approved: "success",
   rejected: "error",
   return_rejected: "error",
+  return_completed: "success",
   completed: "success",
 };
 
@@ -50,6 +51,7 @@ const statusIcons = {
   approved: <CheckCircleIcon fontSize="small" />,
   rejected: <CancelIcon fontSize="small" />,
   return_rejected: <CancelIcon fontSize="small" />,
+  return_completed: <CheckCircleIcon fontSize="small" />,
   completed: <CheckCircleIcon fontSize="small" />,
 };
 
@@ -71,7 +73,7 @@ const getStatusConfirmMessage = (status) => {
     approved: "Are you sure you want to approve this return request? This will allow the customer to return the product.",
     rejected: "Are you sure you want to reject this return request? The customer will be notified.",
     return_rejected: "Are you sure you want to reject the returned product? This action will notify the customer.",
-    completed: "Are you sure you want to mark this return as completed? This will update the order status to 'return_completed' and finalize the return process."
+    completed: "Are you sure you want to mark this return as completed? This will finalize the return process."
   };
   return messages[status] || "Are you sure you want to change the status?";
 };
@@ -323,56 +325,6 @@ const Returns = () => {
       // Open rejection dialog for return_rejected
       setRejectingReturnId(returnId);
       setRejectDialogOpen(true);
-    } else if (newStatus === "completed") {
-      // Handle completed status by updating the order status
-      setStatusLoading((prev) => ({ ...prev, [returnId]: true }));
-      try {
-        // Find the return object to get the orderId
-        const returnObj = returns.find(ret => ret._id === returnId);
-        if (!returnObj) {
-          throw new Error("Return object not found");
-        }
-
-        // Debug: Log the return object structure
-        console.log("Return object structure:", returnObj);
-
-        // Extract the order ObjectId for the API call
-        const actualOrderId = returnObj.orderObjectId;
-        if (!actualOrderId) {
-          throw new Error("Order ObjectId not found for this return");
-        }
-
-        console.log("Using order ObjectId for API call:", actualOrderId);
-
-        const token = localStorage.getItem("admin_token");
-        const apiUrl = process.env.REACT_APP_API_URL || "http://localhost:8000/api";
-        
-        // Call the orders API to mark as return_completed
-        await axios.put(
-          `${apiUrl}/orders/${actualOrderId}/status`,
-          { status: "return_completed" },
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          }
-        );
-
-        setSnackbar({
-          open: true,
-          message: "Return marked as completed successfully!",
-          severity: "success",
-        });
-        
-        // Refresh the returns data
-        fetchReturns();
-      } catch (err) {
-        setSnackbar({
-          open: true,
-          message: err?.response?.data?.message || err?.message || "Failed to complete return.",
-          severity: "error",
-        });
-      } finally {
-        setStatusLoading((prev) => ({ ...prev, [returnId]: false }));
-      }
     } else {
       // Set loading state
       setStatusLoading((prev) => ({ ...prev, [returnId]: true }));
