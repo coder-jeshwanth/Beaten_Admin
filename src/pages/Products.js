@@ -652,7 +652,7 @@ function Products() {
             </Grid>
             <Grid item xs={12} md={6}>
               <Typography variant="subtitle2" color="text.secondary">
-                Stock
+                Total Stock
               </Typography>
               <Typography variant="body1" gutterBottom>
                 {product.stockQuantity || 0} units
@@ -681,24 +681,103 @@ function Products() {
                 sx={{ mt: 1 }}
               />
             </Grid>
-             <Grid item xs={12}>
-              <Typography variant="subtitle2" color="text.secondary">
-                Size
-              </Typography>
-             <Typography variant="body1" paragraph>
-  {product.sizes?.join(', ')}
-</Typography>
-
-            </Grid>
-            <Grid item xs={12}>
-              <Typography variant="subtitle2" color="text.secondary">
-                Colors
-              </Typography>
-             <Typography variant="body1" paragraph>
-  {product.colors?.join(', ')}
-</Typography>
-
-            </Grid>
+            
+            {/* Stock by Color & Size Variants */}
+            {product.variantStock && product.colors?.length > 0 && product.sizes?.length > 0 && (
+              <Grid item xs={12}>
+                <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                  Stock by Color & Size
+                </Typography>
+                <TableContainer component={Paper} sx={{ mt: 1, maxHeight: 400 }}>
+                  <Table stickyHeader size="small">
+                    <TableHead>
+                      <TableRow>
+                        <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#f5f5f5' }}>
+                          Color
+                        </TableCell>
+                        {product.sizes.map((size) => (
+                          <TableCell 
+                            key={size} 
+                            align="center" 
+                            sx={{ fontWeight: 'bold', backgroundColor: '#f5f5f5', minWidth: 80 }}
+                          >
+                            {size}
+                          </TableCell>
+                        ))}
+                        <TableCell 
+                          align="center" 
+                          sx={{ fontWeight: 'bold', backgroundColor: '#e3f2fd', minWidth: 100 }}
+                        >
+                          Color Total
+                        </TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {product.colors.map((color, colorIndex) => (
+                        <TableRow key={color} sx={{ '&:nth-of-type(odd)': { backgroundColor: '#fafafa' } }}>
+                          <TableCell 
+                            component="th" 
+                            scope="row" 
+                            sx={{ 
+                              fontWeight: 'bold',
+                              backgroundColor: colorIndex % 2 === 0 ? '#f5f5f5' : '#eeeeee'
+                            }}
+                          >
+                            {color}
+                          </TableCell>
+                          {product.sizes.map((size) => {
+                            const key = `${color}-${size}`;
+                            const stock = product.variantStock[key] || 0;
+                            return (
+                              <TableCell key={size} align="center" sx={{ fontWeight: 'medium' }}>
+                                <Chip 
+                                  label={stock} 
+                                  size="small"
+                                  color={stock > 0 ? 'success' : stock === 0 ? 'error' : 'default'}
+                                  sx={{ minWidth: 50 }}
+                                />
+                              </TableCell>
+                            );
+                          })}
+                          <TableCell align="center" sx={{ backgroundColor: '#e3f2fd', fontWeight: 'bold' }}>
+                            {product.sizes.reduce((total, size) => {
+                              const key = `${color}-${size}`;
+                              return total + (parseInt(product.variantStock[key]) || 0);
+                            }, 0)}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                      {/* Size Totals Row */}
+                      <TableRow sx={{ backgroundColor: '#e8f5e9' }}>
+                        <TableCell sx={{ fontWeight: 'bold' }}>Size Total</TableCell>
+                        {product.sizes.map((size) => (
+                          <TableCell key={size} align="center" sx={{ fontWeight: 'bold' }}>
+                            {product.colors.reduce((total, color) => {
+                              const key = `${color}-${size}`;
+                              return total + (parseInt(product.variantStock[key]) || 0);
+                            }, 0)}
+                          </TableCell>
+                        ))}
+                        <TableCell 
+                          align="center" 
+                          sx={{ 
+                            fontWeight: 'bold', 
+                            fontSize: '1.1em',
+                            backgroundColor: '#c8e6c9'
+                          }}
+                        >
+                          {product.stockQuantity || 0}
+                        </TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+                <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                  Stock quantities for each color-size combination
+                </Typography>
+              </Grid>
+            )}
+            
             <Grid item xs={12}>
               <Typography variant="subtitle2" color="text.secondary">
                 Description
@@ -774,12 +853,65 @@ function Products() {
       isBeatenExclusive: product?.isBeatenExclusive || false,
       soldCount: product?.soldCount || 0,
       images: product?.images || [],
+      variantStock: product?.variantStock || {}, // New field for color-size stock tracking
     });
 
     const [featuresInput, setFeaturesInput] = useState("");
     const [tagsInput, setTagsInput] = useState("");
 const [colorsInput, setColorsInput] = useState(formData.colors.join(", "));
     const [submitLoading, setSubmitLoading] = useState(false);
+
+    // Initialize variant stock when dialog opens
+    useEffect(() => {
+      if (open && formData.colors.length > 0 && formData.sizes.length > 0) {
+        const initialVariantStock = generateVariantStock(formData.colors, formData.sizes);
+        setFormData(prev => ({
+          ...prev,
+          variantStock: initialVariantStock
+        }));
+      }
+    }, [open]);
+
+    // Helper function to generate all color-size combinations
+    const generateVariantStock = (colors, sizes) => {
+      const variants = {};
+      colors.forEach(color => {
+        sizes.forEach(size => {
+          const key = `${color}-${size}`;
+          variants[key] = formData.variantStock[key] || 0;
+        });
+      });
+      return variants;
+    };
+
+    // Calculate total stock from all variants
+    const calculateTotalStock = (variantStock) => {
+      return Object.values(variantStock).reduce((total, stock) => total + (parseInt(stock) || 0), 0);
+    };
+
+    // Update variant stock when colors or sizes change
+    const updateVariantStock = (newColors, newSizes) => {
+      const newVariantStock = generateVariantStock(newColors, newSizes);
+      setFormData(prev => ({
+        ...prev,
+        variantStock: newVariantStock,
+        stockQuantity: calculateTotalStock(newVariantStock)
+      }));
+    };
+
+    // Handle variant stock change for individual color-size combinations
+    const handleVariantStockChange = (color, size, stock) => {
+      const key = `${color}-${size}`;
+      const newVariantStock = {
+        ...formData.variantStock,
+        [key]: parseInt(stock) || 0
+      };
+      setFormData(prev => ({
+        ...prev,
+        variantStock: newVariantStock,
+        stockQuantity: calculateTotalStock(newVariantStock)
+      }));
+    };
 
     const handleChange = (e) => {
       const { name, value } = e.target;
@@ -1188,40 +1320,6 @@ const [colorsInput, setColorsInput] = useState(formData.colors.join(", "));
                 </Box>
               </Grid>
 
-              {/* Inventory Section */}
-              <Grid item xs={12}>
-                <Divider sx={{ my: 2 }} />
-                <Typography variant="subtitle1" gutterBottom>
-                  Inventory
-                </Typography>
-              </Grid>
-              <Grid item xs={12} md={3}>
-                <TextField
-                  fullWidth
-                  label="Stock Quantity"
-                  name="stockQuantity"
-                  type="number"
-                  value={formData.stockQuantity}
-                  onChange={handleChange}
-                />
-              </Grid>
-              <Grid item xs={12} md={3}>
-                <FormControlLabel
-                  control={
-                    <Switch
-                      checked={formData.inStock}
-                      onChange={(e) =>
-                        setFormData((prev) => ({
-                          ...prev,
-                          inStock: e.target.checked,
-                        }))
-                      }
-                      name="inStock"
-                    />
-                  }
-                  label="In Stock"
-                />
-              </Grid>
               {/* Sizes and Colors Section */}
               <Grid item xs={12}>
                 <Divider sx={{ my: 2 }} />
@@ -1239,12 +1337,15 @@ const [colorsInput, setColorsInput] = useState(formData.colors.join(", "));
                     name="sizes"
                     value={formData.sizes}
                     label="Sizes *"
-                    onChange={(e) =>
+                    onChange={(e) => {
+                      const newSizes = e.target.value;
                       setFormData((prev) => ({
                         ...prev,
-                        sizes: e.target.value,
-                      }))
-                    }
+                        sizes: newSizes,
+                      }));
+                      // Update variant stock when sizes change
+                      updateVariantStock(formData.colors, newSizes);
+                    }}
                     renderValue={(selected) => selected.join(", ")}
                   >
                     {sizes.map((size) => (
@@ -1262,18 +1363,220 @@ const [colorsInput, setColorsInput] = useState(formData.colors.join(", "));
   name="colors"
   value={colorsInput}
   onChange={(e) => setColorsInput(e.target.value)}
-  onBlur={() =>
+  onBlur={() => {
+    const newColors = colorsInput
+      .split(",")
+      .map((c) => c.trim())
+      .filter((c) => c);
     setFormData((prev) => ({
       ...prev,
-      colors: colorsInput
-        .split(",")
-        .map((c) => c.trim())
-        .filter((c) => c),
-    }))
-  }
+      colors: newColors,
+    }));
+    // Update variant stock when colors change
+    updateVariantStock(newColors, formData.sizes);
+  }}
   placeholder="Red, Blue, Green"
 />
               </Grid>
+              
+              {/* Inventory Management Section */}
+              <Grid item xs={12}>
+                <Divider sx={{ my: 2 }} />
+                <Typography variant="subtitle1" gutterBottom>
+                  Inventory Management
+                </Typography>
+              </Grid>
+              
+              {/* Total Stock Display (Read-only) */}
+              <Grid item xs={12} md={4}>
+                <TextField
+                  fullWidth
+                  label="Total Stock (Auto-calculated)"
+                  name="stockQuantity"
+                  type="number"
+                  value={formData.stockQuantity}
+                  InputProps={{
+                    readOnly: true,
+                  }}
+                  sx={{
+                    '& .MuiInputBase-input': {
+                      backgroundColor: '#f5f5f5',
+                    },
+                  }}
+                  helperText="Automatically calculated from variant stocks below"
+                />
+              </Grid>
+              <Grid item xs={12} md={4}>
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={formData.inStock}
+                      onChange={(e) =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          inStock: e.target.checked,
+                        }))
+                      }
+                      name="inStock"
+                    />
+                  }
+                  label="Available for Sale"
+                />
+              </Grid>
+
+              {/* Variant Stock Management Table */}
+              {formData.colors.length > 0 && formData.sizes.length > 0 && (
+                <Grid item xs={12}>
+                  <Box sx={{ mt: 2 }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                      <Typography variant="subtitle2">
+                        Stock by Color & Size Variants
+                      </Typography>
+                      <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+                        <TextField
+                          size="small"
+                          label="Set all to"
+                          type="number"
+                          sx={{ width: 120 }}
+                          inputProps={{ min: 0 }}
+                          placeholder="0"
+                          onKeyPress={(e) => {
+                            if (e.key === 'Enter') {
+                              const value = e.target.value;
+                              if (value !== '') {
+                                const newVariantStock = {};
+                                formData.colors.forEach(color => {
+                                  formData.sizes.forEach(size => {
+                                    const key = `${color}-${size}`;
+                                    newVariantStock[key] = parseInt(value) || 0;
+                                  });
+                                });
+                                setFormData(prev => ({
+                                  ...prev,
+                                  variantStock: newVariantStock,
+                                  stockQuantity: calculateTotalStock(newVariantStock)
+                                }));
+                                e.target.value = '';
+                              }
+                            }
+                          }}
+                        />
+                        <Typography variant="caption" color="text.secondary">
+                          Press Enter to apply to all
+                        </Typography>
+                      </Box>
+                    </Box>
+                    <TableContainer component={Paper} sx={{ maxHeight: 400 }}>
+                      <Table stickyHeader size="small">
+                        <TableHead>
+                          <TableRow>
+                            <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#f5f5f5' }}>
+                              Color
+                            </TableCell>
+                            {formData.sizes.map((size) => (
+                              <TableCell 
+                                key={size} 
+                                align="center" 
+                                sx={{ fontWeight: 'bold', backgroundColor: '#f5f5f5', minWidth: 80 }}
+                              >
+                                {size}
+                              </TableCell>
+                            ))}
+                            <TableCell 
+                              align="center" 
+                              sx={{ fontWeight: 'bold', backgroundColor: '#e3f2fd', minWidth: 100 }}
+                            >
+                              Color Total
+                            </TableCell>
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
+                          {formData.colors.map((color, colorIndex) => (
+                            <TableRow key={color} sx={{ '&:nth-of-type(odd)': { backgroundColor: '#fafafa' } }}>
+                              <TableCell 
+                                component="th" 
+                                scope="row" 
+                                sx={{ 
+                                  fontWeight: 'bold',
+                                  backgroundColor: colorIndex % 2 === 0 ? '#f5f5f5' : '#eeeeee'
+                                }}
+                              >
+                                {color}
+                              </TableCell>
+                              {formData.sizes.map((size) => {
+                                const key = `${color}-${size}`;
+                                return (
+                                  <TableCell key={size} align="center">
+                                    <TextField
+                                      type="number"
+                                      size="small"
+                                      value={formData.variantStock[key] || 0}
+                                      onChange={(e) => handleVariantStockChange(color, size, e.target.value)}
+                                      inputProps={{ 
+                                        min: 0, 
+                                        style: { textAlign: 'center' }
+                                      }}
+                                      sx={{ width: 70 }}
+                                    />
+                                  </TableCell>
+                                );
+                              })}
+                              <TableCell align="center" sx={{ backgroundColor: '#e3f2fd', fontWeight: 'bold' }}>
+                                {formData.sizes.reduce((total, size) => {
+                                  const key = `${color}-${size}`;
+                                  return total + (parseInt(formData.variantStock[key]) || 0);
+                                }, 0)}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                          {/* Size Totals Row */}
+                          <TableRow sx={{ backgroundColor: '#e8f5e9' }}>
+                            <TableCell sx={{ fontWeight: 'bold' }}>Size Total</TableCell>
+                            {formData.sizes.map((size) => (
+                              <TableCell key={size} align="center" sx={{ fontWeight: 'bold' }}>
+                                {formData.colors.reduce((total, color) => {
+                                  const key = `${color}-${size}`;
+                                  return total + (parseInt(formData.variantStock[key]) || 0);
+                                }, 0)}
+                              </TableCell>
+                            ))}
+                            <TableCell 
+                              align="center" 
+                              sx={{ 
+                                fontWeight: 'bold', 
+                                fontSize: '1.1em',
+                                backgroundColor: '#c8e6c9'
+                              }}
+                            >
+                              {formData.stockQuantity}
+                            </TableCell>
+                          </TableRow>
+                        </TableBody>
+                      </Table>
+                    </TableContainer>
+                    <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                      * Enter stock quantity for each color-size combination. Total stock is automatically calculated.
+                    </Typography>
+                  </Box>
+                </Grid>
+              )}
+
+              {/* Message when no colors/sizes selected */}
+              {(formData.colors.length === 0 || formData.sizes.length === 0) && (
+                <Grid item xs={12}>
+                  <Box sx={{ 
+                    p: 3, 
+                    border: '2px dashed #ddd', 
+                    borderRadius: 2, 
+                    textAlign: 'center',
+                    backgroundColor: '#fafafa'
+                  }}>
+                    <Typography variant="body2" color="text.secondary">
+                      Please select both colors and sizes above to manage variant-specific stock quantities.
+                    </Typography>
+                  </Box>
+                </Grid>
+              )}
               
               {/* Materials and Care Section */}
               <Grid item xs={12}>
