@@ -93,7 +93,7 @@ function Analytics() {
 
     try {
       const response = await axios.post(
-        `${BASE_URL}/api/admin/dashboard/add-member`,
+        `${BASE_URL}/admin/dashboard/add-member`,
         {
           email: addEmail.trim(),
           subscriptionType: "yearly",
@@ -105,7 +105,7 @@ function Analytics() {
         setAddSuccess(response.data.message);
         // Refresh the subscription list
         const subsResponse = await axios.get(
-          `${BASE_URL}/api/admin/dashboard/subscription-list`,
+          `${BASE_URL}/admin/dashboard/subscription-list`,
           {
             headers: {
               Authorization: `Bearer ${localStorage.getItem("adminToken")}`,
@@ -168,7 +168,7 @@ function Analytics() {
 
     try {
       const response = await axios.post(
-        `${BASE_URL}/api/admin/dashboard/send-bulk-message`,
+        `${BASE_URL}/admin/dashboard/send-bulk-message`,
         {
           subject: bulkMessageSubject.trim(),
           message: bulkMessageContent.trim(),
@@ -209,7 +209,7 @@ function Analytics() {
     // Function to fetch orders with proper error handling
     const fetchOrders = async () => {
       try {
-        const response = await axios.get(`${BASE_URL}/api/orders`);
+        const response = await axios.get(`${BASE_URL}/orders`);
         console.log("Orders API Response:", response.data.data);
         
         // Handle potential response data structures
@@ -251,7 +251,7 @@ function Analytics() {
     // Function to fetch subscription data
     const fetchSubscriptions = async () => {
       try {
-        const response = await axios.get(`${BASE_URL}/api/admin/dashboard/subscription-list`, {
+        const response = await axios.get(`${BASE_URL}/admin/dashboard/subscription-list`, {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("adminToken")}`,
             "Content-Type": "application/json",
@@ -660,7 +660,7 @@ function Analytics() {
 
     try {
       const res = await axios.post(
-        `${BASE_URL}/api/admin/dashboard/send-subscription-reminder`,
+        `${BASE_URL}/admin/dashboard/send-subscription-reminder`,
         {
           email: selectedSubscription.email,
           name: selectedSubscription.name,
@@ -1292,7 +1292,7 @@ function Analytics() {
       return;
     try {
       const res = await axios.delete(
-        `${BASE_URL}/api/orders/subscription`,
+        `${BASE_URL}/orders/subscription`,
         {
           data: { email: sub.email },
           headers: {
@@ -1304,7 +1304,7 @@ function Analytics() {
       alert(res.data.message || "Subscription deleted!");
       // Refresh the subscription list
       const subsResponse = await axios.get(
-        `${BASE_URL}/api/admin/dashboard/subscription-list`,
+        `${BASE_URL}/admin/dashboard/subscription-list`,
         {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("adminToken")}`,
