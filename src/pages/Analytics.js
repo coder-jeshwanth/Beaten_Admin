@@ -27,7 +27,7 @@ import html2canvas from "html2canvas";
 import InvoiceTemplate from "../components/InvoiceTemplate";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 // Import any admin UI components as needed (e.g., AdminCard, AdminTable, AdminButton, etc.)
-const BASE_URL = "http://localhost:8000";
+const BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:8000";
 function Analytics() {
   const location = useLocation();
   const [orders, setOrders] = useState([]);
@@ -105,7 +105,13 @@ function Analytics() {
         setAddSuccess(response.data.message);
         // Refresh the subscription list
         const subsResponse = await axios.get(
-          `${BASE_URL}/api/admin/dashboard/subscription-list`
+          `${BASE_URL}/api/admin/dashboard/subscription-list`,
+          {
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem("adminToken")}`,
+              "Content-Type": "application/json",
+            },
+          }
         );
         if (subsResponse.data.success) {
           setSubscriptions(subsResponse.data.data || []);
@@ -167,6 +173,12 @@ function Analytics() {
           subject: bulkMessageSubject.trim(),
           message: bulkMessageContent.trim(),
           includeUnsubscribeLink: true,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("adminToken")}`,
+            "Content-Type": "application/json",
+          },
         }
       );
 
@@ -239,7 +251,12 @@ function Analytics() {
     // Function to fetch subscription data
     const fetchSubscriptions = async () => {
       try {
-        const response = await axios.get(`${BASE_URL}/api/admin/dashboard/subscription-list`);
+        const response = await axios.get(`${BASE_URL}/api/admin/dashboard/subscription-list`, {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("adminToken")}`,
+            "Content-Type": "application/json",
+          },
+        });
         const subs = response.data.data || [];
         setSubscriptions(subs);
       } catch (error) {
@@ -1275,17 +1292,25 @@ function Analytics() {
       return;
     try {
       const res = await axios.delete(
-        `${BASE_URL}/api/orders/subscription/${sub.email}`,
+        `${BASE_URL}/api/orders/subscription`,
         {
+          data: { email: sub.email },
           headers: {
-            // Add your auth headers if needed
+            Authorization: `Bearer ${localStorage.getItem("adminToken")}`,
+            "Content-Type": "application/json",
           },
         }
       );
       alert(res.data.message || "Subscription deleted!");
       // Refresh the subscription list
       const subsResponse = await axios.get(
-        `${BASE_URL}/api/admin/dashboard/subscription-list`
+        `${BASE_URL}/api/admin/dashboard/subscription-list`,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("adminToken")}`,
+            "Content-Type": "application/json",
+          },
+        }
       );
       if (subsResponse.data.success) {
         setSubscriptions(subsResponse.data.data || []);
