@@ -349,6 +349,8 @@ const FooterInfo = () => {
             ) : (
               <Typography variant="body2" color="textSecondary">
                 Drag & drop an image here, or click to select
+                <br />
+                Recommended Size : 1900 x 400
               </Typography>
             )}
           </Box>
