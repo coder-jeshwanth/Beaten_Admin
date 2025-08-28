@@ -1312,7 +1312,7 @@ const DataEntry = () => {
             {/* Mobile recommended size */}
             <Box sx={{ mt: 1 }}>
               <Typography variant="caption" color="textSecondary">
-                Recommended size (Mobile): <b>800 x 800 px</b>
+                Recommended size (Mobile): <b>1080 x 1920 px</b>
               </Typography>
             </Box>
           </Box>
@@ -1910,7 +1910,7 @@ const DataEntry = () => {
             {/* Desktop recommended size */}
             <Box sx={{ mt: 1 }}>
               <Typography variant="caption" color="textSecondary">
-                Recommended size (Desktop): <b>1920 x 600 px</b>
+                Recommended size (Desktop): <b>1920 x 1080 px</b>
               </Typography>
             </Box>
           </Box>
