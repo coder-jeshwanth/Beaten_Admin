@@ -30,6 +30,7 @@ import {
   MenuItem,
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
+import RefreshIcon from "@mui/icons-material/Refresh";
 import AssignmentReturnIcon from "@mui/icons-material/AssignmentReturn";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import CancelIcon from "@mui/icons-material/Cancel";
@@ -175,6 +176,11 @@ const Returns = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Handle refresh button click
+  const handleRefresh = async () => {
+    await fetchReturns();
   };
 
   // Function to fetch order and product details
@@ -407,13 +413,13 @@ const Returns = () => {
         <AssignmentReturnIcon sx={{ fontSize: 32, color: "primary.main" }} />{" "}
         All Returns
       </Typography>
-      <Box sx={{ mb: 3, maxWidth: 400 }}>
+      <Box sx={{ mb: 3, display: 'flex', gap: 2, alignItems: 'center' }}>
         <TextField
-          fullWidth
           size="small"
           placeholder="Search by user, order, product, reason, status..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
+          sx={{ maxWidth: 400, flex: 1 }}
           InputProps={{
             startAdornment: (
               <InputAdornment position="start">
@@ -422,6 +428,16 @@ const Returns = () => {
             ),
           }}
         />
+        <Button
+          variant="outlined"
+          size="small"
+          onClick={handleRefresh}
+          disabled={loading}
+          startIcon={loading ? <CircularProgress size={16} /> : <RefreshIcon />}
+          sx={{ minWidth: 'auto', px: 2 }}
+        >
+          Refresh
+        </Button>
       </Box>
       {loading ? (
         <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
