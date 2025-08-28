@@ -782,7 +782,15 @@ function Products() {
               <Typography variant="subtitle2" color="text.secondary">
                 Description
               </Typography>
-              <Typography variant="body1" paragraph>
+              <Typography 
+                variant="body1" 
+                paragraph
+                sx={{ 
+                  whiteSpace: 'pre-wrap',
+                  wordBreak: 'break-word',
+                  fontFamily: 'inherit'
+                }}
+              >
                 {product.description}
               </Typography>
             </Grid>
@@ -1151,6 +1159,15 @@ const [colorsInput, setColorsInput] = useState(formData.colors.join(", "));
                   value={formData.description}
                   onChange={handleChange}
                   required
+                  InputProps={{
+                    sx: {
+                      '& textarea': {
+                        whiteSpace: 'pre-wrap',
+                        fontFamily: 'inherit',
+                      }
+                    }
+                  }}
+                  placeholder="Enter product description"
                 />
               </Grid>
               <Grid item xs={12} md={4}>
