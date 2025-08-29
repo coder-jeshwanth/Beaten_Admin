@@ -303,12 +303,32 @@ function Customers() {
                 <Typography variant="h6">{customer.name}</Typography>
                 <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
                   {customer.tags.map((tag, index) => (
-                    <Chip
-                      key={index}
-                      label={tag}
-                      size="small"
-                      color={tag === "VIP" ? "primary" : "default"}
-                    />
+                    tag === "VIP" ? (
+                      <Box 
+                        key={index}
+                        component="span" 
+                        sx={{ 
+                          backgroundColor: "#D4AF37", // Golden color
+                          color: "#000000", // Black text
+                          fontSize: "0.7rem",
+                          fontWeight: 800,
+                          px: 1,
+                          py: 0.5,
+                          borderRadius: 1,
+                          display: "inline-block",
+                          lineHeight: 1.2,
+                        }}
+                      >
+                        BEATEN Club
+                      </Box>
+                    ) : (
+                      <Chip
+                        key={index}
+                        label={tag}
+                        size="small"
+                        color="default"
+                      />
+                    )
                   ))}
                 </Stack>
               </Box>
@@ -600,12 +620,32 @@ function Customers() {
                           </Typography>
                           <Stack direction="row" spacing={0.5}>
                             {customer.tags.map((tag, index) => (
-                              <Chip
-                                key={index}
-                                label={tag}
-                                size="small"
-                                color={tag === "VIP" ? "primary" : "default"}
-                              />
+                              tag === "VIP" ? (
+                                <Box 
+                                  key={index}
+                                  component="span" 
+                                  sx={{ 
+                                    backgroundColor: "#D4AF37", // Golden color
+                                    color: "#000000", // Black text
+                                    fontSize: "0.7rem",
+                                    fontWeight: 800,
+                                    px: 1,
+                                    py: 0.5,
+                                    borderRadius: 1,
+                                    display: "inline-block",
+                                    lineHeight: 1.2,
+                                  }}
+                                >
+                                  BEATEN Club
+                                </Box>
+                              ) : (
+                                <Chip
+                                  key={index}
+                                  label={tag}
+                                  size="small"
+                                  color="default"
+                                />
+                              )
                             ))}
                           </Stack>
                         </Box>
